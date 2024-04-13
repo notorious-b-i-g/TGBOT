@@ -5,6 +5,7 @@ from keyboard.workerKB import *
 from keyboard.clientKB import main_menu_kb
 from states import Form
 from create_bot import dp, bot, FSMContext
+from db import insert_data,get_data,insert_task_with_photos
 
 
 # @dp.callback_query_handler(text='lk_worker', state=Form.main_menu)
@@ -43,8 +44,10 @@ async def process_registration(callback: types.CallbackQuery, state: FSMContext)
 
 async def confirm_yes(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
-    await bot.send_message(571294067,
-                           f"Пользователь {user_data['username']} ({user_data['user_id']}) хочет зарегистрироваться как {user_data['specialist_name']}.")
+    #await bot.send_message(571294067,
+    #                       f"Пользователь {user_data['username']} ({user_data['user_id']}) хочет зарегистрироваться как {user_data['specialist_name']}.")
+    query = "INSERT INTO Users (username, userid, specialist_name) VALUES (%s, %s, %s)"
+    await insert_data(query, user_data['username'], str(user_data['user_id']), user_data['specialist_name'])
     await Form.main_menu.set()
     await callback.message.edit_text('Запрос на регистрацию отправлен.' )
 

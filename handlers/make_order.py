@@ -10,10 +10,7 @@ from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from typing import List, Union
 from db import insert_data,get_data,insert_task_with_photos
-query = '''
-    INSERT INTO tasks (specialist_name, problem_description, photo_ids)
-    VALUES (%s, %s, %s)
-    '''
+
 class AlbumMiddleware(BaseMiddleware):
     """This middleware is for capturing media groups."""
 
