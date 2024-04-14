@@ -5,11 +5,13 @@ from states import Form
 from create_bot import bot, FSMContext
 import json
 import asyncio
+import datetime
 
 from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from typing import List, Union
-from db import insert_data,get_data,insert_task_with_photos
+from db import insert_data, get_data, insert_task_with_photos
+
 
 class AlbumMiddleware(BaseMiddleware):
     """This middleware is for capturing media groups."""
@@ -74,13 +76,15 @@ async def process_spec_selection(callback: types.CallbackQuery, state: FSMContex
 # @dp.message_handler(state=Form.problem_description)
 async def what_to_do(message: types.Message, state: FSMContext):
     problem = message.text
+    photos = []
     async with state.proxy() as data_dict:
         data_dict['problem_description'] = problem  # Сохраняем описание проблемы в словаре состояния
+        data_dict['photos'] = photos
+
     await message.answer('Прикрепите фотографии работы')
     # Далее вы можете выполнить любые необходимые действия с данными о специалисте и описанием проблемы
     await Form.wait_foto.set()
 
-photos = []
 
 
 # @dp.message_handler(state=Form.wait_foto)
@@ -89,7 +93,7 @@ async def work_foto(message: types.Message, album: List[types.Message], state: F
     async with state.proxy() as data_dict:
         specialist_name = data_dict.get('specialist_name', '')
         problem = data_dict.get('problem_description', '')
-        data_dict['photos'] = photos
+        photos = data_dict.get('photos')
 
         # Формируем медиа группу из полученного альбома
         for idx, obj in enumerate(album):
@@ -117,6 +121,7 @@ async def add_one_foto(message: types.Message, state: FSMContext):
     async with state.proxy() as data_dict:
         specialist_name = data_dict.get('specialist_name', '')  # Получение значения по ключу specialist_name
         problem = data_dict.get('problem_description', '')
+        photos = data_dict.get('photos')
         photos.append(photo.file_id)  # Добавление нового фото в список
 
     media_group = types.MediaGroup()
@@ -134,13 +139,22 @@ async def add_one_foto(message: types.Message, state: FSMContext):
 
 # @callback_query_handler(confirm_of_order, text='edit_order', state=Form.order_confirming)
 async def confirm_of_order(callback: types.CallbackQuery, state: FSMContext):
+    query = '''
+    INSERT INTO tasks (specialist_name, problem_description, photo_ids, client_name, post_time, order_status)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    '''
     user_id = callback.from_user.id  # Получаем ID пользователя из объекта callback
     async with state.proxy() as data_dict:
         specialist_name = data_dict.get('specialist_name', '')
         problem = data_dict.get('problem_description', '')
-    print(photos)
-    await insert_task_with_photos(specialist_name, problem, photos , callback.from_user.username)
+        photos = data_dict.get('photos', [])  # Убедитесь, что 'photos' сохраняются в состоянии
 
+    current_datetime = datetime.datetime.now()
+    formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+    json_file_ids = json.dumps(photos)
+    params = (specialist_name, problem, json_file_ids, callback.from_user.username, formatted_datetime, 'available')
+    await insert_task_with_photos(query, params)  # Передача параметров корректно
     await callback.message.edit_text(text='Главное меню', reply_markup=main_menu_kb)
     await Form.main_menu.set()
 
