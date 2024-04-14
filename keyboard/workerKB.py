@@ -23,3 +23,13 @@ w_spec_back = InlineKeyboardButton(text='Выход', callback_data='back_1')
 worker_spec_select_kb.add(w_spec_1, w_spec_2)
 worker_spec_select_kb.add(w_spec_3)
 
+select_order_kb = InlineKeyboardMarkup(row_width=2)
+accept_order_b = InlineKeyboardButton(text='Принять заявку', callback_data='accept_order')
+decline_order_b = InlineKeyboardButton(text='Отклонить заявку', callback_data='decline_order')
+next_order_b = InlineKeyboardButton(text='Следующая заявка', callback_data='next_oder')
+prev_order_b = InlineKeyboardButton(text='Предыдущая заявка', callback_data='prev_order')
+exit_wrk_lk_b = InlineKeyboardButton(text='Выход', callback_data='exit_wrk_lk')
+
+select_order_kb.add(accept_order_b, decline_order_b)
+select_order_kb.add(prev_order_b, next_order_b)
+select_order_kb.add(exit_wrk_lk_b)

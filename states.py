@@ -26,5 +26,9 @@ class Form(StatesGroup):
     edit_spec_st = State()
     edit_prob_st = State()
 
+    # Состояния админа
     admin_lk_st = State()
     admin_show_req = State()
+
+    # Состояния работяги
+    select_order_st = State()

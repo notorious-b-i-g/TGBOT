@@ -17,7 +17,9 @@ async def admin_lk_show(message: types.Message):
     else:
         await bot.send_message(message.chat.id, 'Пошёл нахуй')
 
+
 async def edit_registred_users(call: types.CallbackQuery):
+    await bot.answer_callback_query(call.id)
     query = "SELECT * FROM registered_users"
     users = await get_data(query, ())
     for i, user in enumerate(users):
@@ -41,11 +43,12 @@ async def remove_registered_user(call: types.CallbackQuery):
     await insert_data(query, (user_id,))
     await bot.delete_message(call.message.chat.id, call.message.message_id)
 
+
 async def view_requests(call: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(call.id)
     # Получаем заявки из базы данных
     query = "SELECT * FROM users"
     requests = await get_data(query, ())
-    await call.answer()
     for i, request in enumerate(requests):
         # Создаем кнопки для каждой заявки
         accept_button = InlineKeyboardButton("Принять", callback_data=f"accept_{request[1]}")
@@ -57,6 +60,7 @@ async def view_requests(call: types.CallbackQuery, state: FSMContext):
         # Форматируем данные и отправляем сообщение с кнопками
         formatted_request = f"Заявка {i + 1}: [@{request[0]}] - Специализация: {request[2]}"
         await bot.send_message(call.message.chat.id, formatted_request, reply_markup=keyboard)
+
 
 async def accept_request(call: types.CallbackQuery):
     # Извлекаем user_id из callback_data
@@ -72,6 +76,7 @@ async def accept_request(call: types.CallbackQuery):
     await bot.delete_message(call.message.chat.id, call.message.message_id)
     query = "DELETE FROM users WHERE userid = %s"
     await insert_data(query, (user_id,))
+
 
 async def remove_request(call: types.CallbackQuery):
     # Извлекаем user_id из callback_data

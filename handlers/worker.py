@@ -42,6 +42,7 @@ async def process_registration(callback: types.CallbackQuery, state: FSMContext)
     await callback.message.edit_text(f'Вы выбрали специализацию {w_specialist_name}, Оставить запрос на регистрацию?', reply_markup=confirm_kb)
 
 
+# @callback_query_handler(confirm_yes, lambda callback: callback.data == 'yes', state=Form.confirm_registration)
 async def confirm_yes(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     #await bot.send_message(571294067,
@@ -51,16 +52,51 @@ async def confirm_yes(callback: types.CallbackQuery, state: FSMContext):
     await Form.main_menu.set()
     await callback.message.edit_text('Запрос на регистрацию отправлен.' )
 
+
+# @callback_query_handler(confirm_no, lambda callback: callback.data == 'no', state=Form.confirm_registration)
 async def confirm_no(callback: types.CallbackQuery, state: FSMContext):
     await Form.main_menu.set()
     await callback.message.edit_text('Регистрация отменена.')
 
 
+# @callback_query_handler(enter_worker_lk, text='enter', state=Form.main_menu)
+async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
+    await Form.select_order_st.set()
+    # Здесь предполагается, что вы извлекли данные из БД
+    specialist_name = "Имя специалиста"  # Пример
+    problem = "Описание проблемы"  # Пример
+    # photos = ["/aabb.png", "/aacc.png"]  # Пример списка ID фото
+    photos = []
+    media_group = types.MediaGroup()
+    if photos:
+        for idx, file_id in enumerate(photos):
+            if idx == 0:
+                # Для первой фотографии добавляем подпись
+                media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}')
+            else:
+                media_group.attach_photo(file_id)
+        # Отправка медиагруппы
+        await callback.bot.send_media_group(callback.message.chat.id, media=media_group)
+        # После отправки медиагруппы можно изменить оригинальное сообщение или отправить новое с кнопками
+        await callback.message.edit_text("Выберите действие:", reply_markup=select_order_kb)
+    else:
+        # Если фотографий нет, просто отправляем текстовое сообщение
+        await callback.message.edit_text("Нет доступных фотографий для отображения.", reply_markup=select_order_kb)
+
+
+# @callback_query_handler(exit_from_orders_show, text='exit_wrk_lk', state=Form.select_order_st)
+async def exit_from_orders_show(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text('Добро пожаловать', reply_markup=main_menu_kb)
+    await Form.main_menu.set()
+
+
 def register_handlers_worker(dp : Dispatcher):
     dp.register_callback_query_handler(see_my_order, text='lk_worker', state=Form.main_menu)
     dp.register_callback_query_handler(back_2, lambda callback: callback.data == 'back_2', state='*')
-    dp.register_callback_query_handler(registration, lambda callback: callback.data == 'registration', state='*')
+    dp.register_callback_query_handler(registration, lambda callback: callback.data == 'registration', state=Form.main_menu)
     dp.register_callback_query_handler(process_registration, lambda callback: callback.data.startswith('spec_') ,
                                        state=Form.registration)
     dp.register_callback_query_handler(confirm_yes, lambda callback: callback.data == 'yes', state=Form.confirm_registration)
     dp.register_callback_query_handler(confirm_no, lambda callback: callback.data == 'no', state=Form.confirm_registration)
+    dp.register_callback_query_handler(enter_worker_lk, text='enter', state=Form.worker_lk)
+    dp.register_callback_query_handler(exit_from_orders_show, text='exit_wrk_lk', state=Form.select_order_st)
