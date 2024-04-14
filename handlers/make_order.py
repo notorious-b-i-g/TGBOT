@@ -134,14 +134,15 @@ async def add_one_foto(message: types.Message, state: FSMContext):
 
 # @callback_query_handler(confirm_of_order, text='edit_order', state=Form.order_confirming)
 async def confirm_of_order(callback: types.CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id  # Получаем ID пользователя из объекта callback
     async with state.proxy() as data_dict:
         specialist_name = data_dict.get('specialist_name', '')
         problem = data_dict.get('problem_description', '')
-    await insert_task_with_photos(specialist_name, problem, photos)
-    print(data_dict)
+    print(photos)
+    await insert_task_with_photos(specialist_name, problem, photos , callback.from_user.username)
 
-    await callback.message.answer(text='Главное меню', reply_markup=main_menu_kb)
-    await state.finish()
+    await callback.message.edit_text(text='Главное меню', reply_markup=main_menu_kb)
+    await Form.main_menu.set()
 
 
 # @callback_query_handler(edit_spec_in_order, text='edit_spec', state=Form.order_confirming)

@@ -6,6 +6,7 @@ from keyboard.clientKB import main_menu_kb
 from states import Form
 from create_bot import dp, bot, FSMContext
 from db import insert_data,get_data,insert_task_with_photos
+import asyncio
 
 
 # @dp.callback_query_handler(text='lk_worker', state=Form.main_menu)
@@ -59,29 +60,52 @@ async def confirm_no(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text('Регистрация отменена.')
 
 
-# @callback_query_handler(enter_worker_lk, text='enter', state=Form.main_menu)
-async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
-    await Form.select_order_st.set()
-    # Здесь предполагается, что вы извлекли данные из БД
-    specialist_name = "Имя специалиста"  # Пример
-    problem = "Описание проблемы"  # Пример
-    # photos = ["/aabb.png", "/aacc.png"]  # Пример списка ID фото
-    photos = []
+async def send_order_by_id(id):
+    query = "SELECT * FROM available_tasks"
+    tasks = await get_data(query, ())
+    specialist_name = tasks[id][1]
+    problem = tasks[id][2]
+    json_string = tasks[id][3]
+    photos = json.loads(json_string)
+
     media_group = types.MediaGroup()
     if photos:
         for idx, file_id in enumerate(photos):
             if idx == 0:
-                # Для первой фотографии добавляем подпись
                 media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}')
             else:
                 media_group.attach_photo(file_id)
-        # Отправка медиагруппы
-        await callback.bot.send_media_group(callback.message.chat.id, media=media_group)
-        # После отправки медиагруппы можно изменить оригинальное сообщение или отправить новое с кнопками
-        await callback.message.edit_text("Выберите действие:", reply_markup=select_order_kb)
-    else:
-        # Если фотографий нет, просто отправляем текстовое сообщение
-        await callback.message.edit_text("Нет доступных фотографий для отображения.", reply_markup=select_order_kb)
+    return media_group
+
+async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
+    await state.update_data(index=0, message_ids=[])
+    media_group = await send_order_by_id(0)
+    messages = await callback.bot.send_media_group(callback.message.chat.id, media=media_group)
+    message_ids = [msg.message_id for msg in messages]
+    message_1 = await callback.bot.send_mуessage(callback.message.chat.id, "Выберите действие:", reply_markup=select_order_kb)
+    message_ids.append(message_1.message_id)
+    await state.update_data(message_ids=message_ids)
+    await Form.select_order_st.set()
+
+async def change_order_see(callback: types.CallbackQuery, state: FSMContext, step: int):
+    data = await state.get_data()
+    message_ids = data.get('message_ids', [])
+    index = data.get('index', 0) + step
+    print(index)
+    await asyncio.gather(*(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+    media_group = await send_order_by_id(index)
+    messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
+    new_message_ids = [msg.message_id for msg in messages]
+    message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:", reply_markup=select_order_kb)
+    new_message_ids.append(message_1.message_id)
+    await state.update_data(index=index, message_ids=new_message_ids)
+
+async def next_order_see(callback: types.CallbackQuery, state: FSMContext):
+    await change_order_see(callback, state, 1)
+
+async def prev_order_see(callback: types.CallbackQuery, state: FSMContext):
+    await change_order_see(callback, state, -1)
+    # await callback.message.edit_text("Нет доступных фотографий для отображения.", reply_markup=select_order_kb)
 
 
 # @callback_query_handler(exit_from_orders_show, text='exit_wrk_lk', state=Form.select_order_st)
@@ -100,3 +124,5 @@ def register_handlers_worker(dp : Dispatcher):
     dp.register_callback_query_handler(confirm_no, lambda callback: callback.data == 'no', state=Form.confirm_registration)
     dp.register_callback_query_handler(enter_worker_lk, text='enter', state=Form.worker_lk)
     dp.register_callback_query_handler(exit_from_orders_show, text='exit_wrk_lk', state=Form.select_order_st)
+    dp.register_callback_query_handler(next_order_see, text='next_oder', state=Form.select_order_st)
+    dp.register_callback_query_handler(prev_order_see, text='prev_order', state=Form.select_order_st)

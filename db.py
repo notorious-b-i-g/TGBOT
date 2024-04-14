@@ -23,10 +23,10 @@ async def insert_data(query, *params):
 
 
 
-async def insert_task_with_photos(specialist_name, problem_description, file_ids):
+async def insert_task_with_photos(specialist_name, problem_description, file_ids, client_name):
     query = '''
-    INSERT INTO tasks (specialist_name, problem_description, photo_ids)
-    VALUES (%s, %s, %s)
+    INSERT INTO available_tasks (specialist_name, problem_description, photo_ids, client_name)
+    VALUES (%s, %s, %s, %s)
     '''
 
     json_file_ids = json.dumps(file_ids)
@@ -34,5 +34,5 @@ async def insert_task_with_photos(specialist_name, problem_description, file_ids
     pool = await create_pool()
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            await cur.execute(query, (specialist_name, problem_description, json_file_ids))
+            await cur.execute(query, (specialist_name, problem_description, json_file_ids, client_name))
             await conn.commit()
