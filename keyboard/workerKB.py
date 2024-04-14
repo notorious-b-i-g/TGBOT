@@ -2,7 +2,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 
 worker_lk_kb = InlineKeyboardMarkup(row_wide=2)
 w_b1 = InlineKeyboardButton(text='Регистрация', callback_data='registration')
-w_b2 = InlineKeyboardButton(text='Вход', callback_data='enter')
+w_b2 = InlineKeyboardButton(text='Активные заявки', callback_data='enter')
 w_b3 = InlineKeyboardButton(text='Мои заявки', callback_data='worker_orders')
 w_b4 = InlineKeyboardButton(text='Назад', callback_data='back_2')
 

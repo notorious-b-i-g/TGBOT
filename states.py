@@ -32,3 +32,4 @@ class Form(StatesGroup):
 
     # Состояния работяги
     select_order_st = State()
+    select_order_st_booked = State()
