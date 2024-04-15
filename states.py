@@ -33,3 +33,10 @@ class Form(StatesGroup):
     # Состояния работяги
     select_order_st = State()
     select_order_st_booked = State()
+    select_order_st_client = State()
+
+    comment_description = State()
+    wait_foto_finish = State()
+    order_confirming_finish = State()
+    edit_order_st_finish = State()
+    edit_photo_st_finish = State()

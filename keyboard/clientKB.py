@@ -58,3 +58,13 @@ b_reset_photo = InlineKeyboardButton(text='Доабавить заново', cal
 edit_photo_kb.add(b_add_photo)
 edit_photo_kb.add(b_remove_photo)
 edit_photo_kb.add(b_reset_photo)
+
+select_order_kb = InlineKeyboardMarkup(row_width=2)
+decline_order_b = InlineKeyboardButton(text='Удалить заявку', callback_data='delete_order')
+next_order_b = InlineKeyboardButton(text='Следующая заявка', callback_data='next_oder')
+prev_order_b = InlineKeyboardButton(text='Предыдущая заявка', callback_data='prev_order')
+exit_wrk_lk_b = InlineKeyboardButton(text='Выход', callback_data='exit_wrk_lk')
+
+select_order_kb.add(decline_order_b)
+select_order_kb.add(prev_order_b, next_order_b)
+select_order_kb.add(exit_wrk_lk_b)

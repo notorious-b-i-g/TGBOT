@@ -14,6 +14,8 @@ import asyncio
 async def see_my_order(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(Form.worker_lk)
     await call.message.edit_text('Добро пожаловать', reply_markup=worker_lk_kb)
+    # message_wrk_lk_id = message_wrk_lk.message_id
+    # await state.update_data(message_wrk_lk=message_wrk_lk_id)
 
 
 async def back_2(callback: types.CallbackQuery, state: FSMContext):
@@ -27,7 +29,7 @@ async def registration(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(user_id=callback.from_user.id, username=callback.from_user.username)
     await Form.registration.set()
     await callback.message.edit_text('Укажите вашу специальность', reply_markup=worker_spec_select_kb)
-    print(callback.from_user.id)
+
 
 
 async def process_registration(callback: types.CallbackQuery, state: FSMContext):
@@ -63,42 +65,57 @@ async def confirm_no(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text('Регистрация отменена.')
 
 
-async def send_order_by_id(id):
-    print(id)
-    id -= 1
-    query = "SELECT * FROM tasks"
-    tasks = await get_data(query, ())
-    specialist_name = tasks[id][1]
-    problem = tasks[id][2]
-    json_string = tasks[id][3]
-    photos = json.loads(json_string)
-    posted_time = tasks[id][6]
-    end_time = tasks[id][7]
+async def send_order_by_id(order_id):
+    # Параметризованный запрос SQL для извлечения записи по ID
+    query = "SELECT * FROM tasks WHERE id = %s"
+    tasks = await get_data(query, (order_id,))  # передаём order_id как параметр
 
-    media_group = types.MediaGroup()
-    if photos:
-        for idx, file_id in enumerate(photos):
-            if idx == 0:
-                media_group.attach_photo(file_id,
-                                         caption=f'Специалист: {specialist_name}\nЗадача: {problem}\nВремя размещения: {posted_time}\nВремя на исполнение: {end_time}')
-            else:
-                media_group.attach_photo(file_id)
-    return media_group
+    if tasks:
+        task = tasks[0]  # Берём первую (и единственную) запись из результата
+        specialist_name = task[1]
+        problem = task[2]
+        json_string = task[3]
+        photos = json.loads(json_string)
+        posted_time = task[6]
+        end_time = task[7]
+
+        media_group = types.MediaGroup()
+        if photos:
+            for idx, file_id in enumerate(photos):
+                if idx == 0:
+                    media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}\nВремя размещения: {posted_time}\nВремя на исполнение: {end_time}')
+                else:
+                    media_group.attach_photo(file_id)
+        return media_group
+    else:
+        # Обработка случая, когда задача с таким ID не найдена
+        print("Задача с ID {} не найдена.".format(order_id))
+        return None
+
 
 
 # @callback_query_handler(enter_worker_lk, text='enter', state=Form.worker_lk)
 async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
     if callback.from_user.username in specialists:
+        data = await state.get_data()
+        # message_wrk_lk_id = data.get('message_wrk_lk')
+        message_ids = data.get('message_ids', [])
+        if message_ids:
+            await asyncio.gather(
+                *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
         available_ids = await get_next_available_index()
         if not available_ids:
-            await callback.bot.send_message(callback.message.chat.id, "Нет доступных заявок.")
+            await callback.message.edit_text("Нет доступных заявок.", reply_markup=worker_lk_kb)
             return
+        await callback.message.delete()
+
         first_available_id = available_ids[0]  # Берем первый ID из списка доступных
 
         # Очищаем предыдущие данные
-        await state.update_data(index=first_available_id, message_ids=[], available_ids=available_ids, current_index=0)
+        await state.update_data(index=first_available_id, message_ids=message_ids, available_ids=available_ids, current_index=0)
 
         media_group = await send_order_by_id(first_available_id)
+        # await callback.bot.delete_message(callback.message.chat.id)
         messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
         message_ids = [msg.message_id for msg in messages]
         message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
@@ -108,41 +125,41 @@ async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
         # Обновление данных в состоянии
         await state.update_data(message_ids=message_ids)
         await Form.select_order_st.set()  # Установка состояния, если это необходимо
+        await state.update_data(come_from="see_my_available")
+
     else:
         await bot.answer_callback_query(callback.id)
         await callback.message.edit_text('Вы не в списке исполнителей', reply_markup=worker_lk_kb)
 
-
 async def get_next_available_index():
     query = "SELECT id FROM tasks WHERE order_status = 'available' ORDER BY id"
     tasks = await get_data(query, ())
-    print([task[0] for task in tasks], "tasks")
+    print(tasks)
     # Assuming tasks is a list of tuples, where each tuple contains one element (id)
     return [task[0] for task in tasks]  # Extracting the first element of each tuple directly
 
 
-async def get_next_booked_index():
-    query = "SELECT id FROM tasks WHERE order_status = 'booked' ORDER BY id"
+async def get_next_booked_index(worker_name):
+    query = f"SELECT id FROM tasks WHERE order_status = 'booked' AND worker_name = '{worker_name}' ORDER BY id"
     tasks = await get_data(query, ())
     # Assuming tasks is a list of tuples, where each tuple contains one element (id)
     return [task[0] for task in tasks]  # Extracting the first element of each tuple directly
-
-
 async def change_order_see(callback: types.CallbackQuery, state: FSMContext, step: int):
     data = await state.get_data()
-    print(data)
     available_ids = data.get('available_ids', [])
-    print(available_ids, "available_ids")
     current_index = data.get('current_index', 0)
     max_index = len(available_ids) - 1
-
     # Обновляем индекс, учитывая возможные границы списка
     if step == 1 and current_index < max_index:
         current_index += 1
+    elif current_index == max_index and step == 1:
+        current_index = 0
     elif step == -1 and current_index > 0:
         current_index -= 1
-    order_id = available_ids[current_index]
+    elif current_index == 0 and step == -1:
+        current_index = max_index
 
+    order_id = available_ids[current_index]
     # Удаление старых сообщений
     message_ids = data.get('message_ids', [])
     await asyncio.gather(*(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
@@ -150,24 +167,32 @@ async def change_order_see(callback: types.CallbackQuery, state: FSMContext, ste
     # Отправка новой группы сообщений
     media_group = await send_order_by_id(order_id)
     messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
+
     new_message_ids = [msg.message_id for msg in messages]
-    message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
-                                                reply_markup=select_order_kb)
+
+    wtd =data.get('come_from')
+    if wtd == 'see_my_booked':
+        message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
+                                                    reply_markup=select_order_kb_booked)
+    else:
+        message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
+                                                    reply_markup=select_order_kb)
     new_message_ids.append(message_1.message_id)
     await state.update_data(index=order_id, current_index=current_index, message_ids=new_message_ids)
 
 
 # @callback_query_handler(next_order_see, text='next_oder', state=Form.select_order_st)
 async def next_order_see(callback: types.CallbackQuery, state: FSMContext):
+
     if not (data := await state.get_data()).get('available_ids'):
         available_ids = await get_next_available_index()
-        print(available_ids)
         await state.update_data(available_ids=available_ids)
     await change_order_see(callback, state, 1)
 
 
 # @callback_query_handler(next_order_see, text='prev_oder', state=Form.select_order_st)
 async def prev_order_see(callback: types.CallbackQuery, state: FSMContext):
+    print(state)
     if not (data := await state.get_data()).get('available_ids'):
         available_ids = await get_next_available_index()
         await state.update_data(available_ids=available_ids)
@@ -178,7 +203,7 @@ async def accept_order(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
 
     order_id = data.get('index')  # Предположим, что ID текущего заказа хранится в состоянии
-    print(order_id, "data")
+
 
     worker_name = callback.from_user.username  # Получаем имя пользователя, который нажал на кнопку
     query = "UPDATE tasks SET order_status = 'booked', worker_name = %s WHERE id = %s;"
@@ -188,31 +213,48 @@ async def accept_order(callback: types.CallbackQuery, state: FSMContext):
 
 # @callback_query_handler(exit_from_orders_show, text='exit_wrk_lk', state=Form.select_order_st)
 async def exit_from_orders_show(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text('Добро пожаловать', reply_markup=main_menu_kb)
+    data = await state.get_data()
+
+    message_ids = data.get('message_ids', [])
+    if message_ids:
+        await asyncio.gather(
+            *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+    await state.update_data(message_ids=[])
+
+    await callback.message.answer('Добро пожаловать', reply_markup=main_menu_kb)
     await Form.main_menu.set()
 
 
 async def see_my_booked_orders(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    message_ids = data.get('message_ids', [])
+    if message_ids:
+        await asyncio.gather(*(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+
     if callback.from_user.username in specialists:
-        available_ids = await get_next_booked_index()
+        available_ids = await get_next_booked_index(callback.from_user.username)
         if not available_ids:
-            await callback.bot.send_message(callback.message.chat.id, "Нет доступных заявок.")
+            await callback.message.edit_text("Нет доступных заявок.", reply_markup=worker_lk_kb)
             return
+        await callback.message.delete()
+
         first_available_id = available_ids[0]  # Берем первый ID из списка доступных
 
         # Очищаем предыдущие данные
-        await state.update_data(index=0, message_ids=[], available_ids=available_ids, current_index=0)
+        await state.update_data(message_ids=message_ids, index=0, available_ids=available_ids, current_index=0)
 
         media_group = await send_order_by_id(first_available_id)
         messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
         message_ids = [msg.message_id for msg in messages]
         message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
-                                                    reply_markup=select_order_kb)
+                                                    reply_markup=select_order_kb_booked)
         message_ids.append(message_1.message_id)
 
         # Обновление данных в состоянии
+        await bot.answer_callback_query(callback.id)
         await state.update_data(message_ids=message_ids)
         await Form.select_order_st.set()  # Установка состояния, если это необходимо
+        await state.update_data(come_from="see_my_booked")
     else:
         await bot.answer_callback_query(callback.id)
         await callback.message.edit_text('Вы не в списке исполнителей', reply_markup=worker_lk_kb)
@@ -222,18 +264,6 @@ async def see_my_booked_orders(callback: types.CallbackQuery, state: FSMContext)
 
 
 # @callback_query_handler(next_order_see, text='next_oder', state=Form.select_order_st)
-async def next_order_see_booked(callback: types.CallbackQuery, state: FSMContext):
-    if not (data := await state.get_data()).get('booked_ids'):
-        available_ids = await get_next_booked_index()
-        await state.update_data(available_ids=available_ids)
-    await change_order_see(callback, state, 1)
-
-
-async def prev_order_see_booked(callback: types.CallbackQuery, state: FSMContext):
-    if not (data := await state.get_data()).get('booked_ids'):
-        available_ids = await get_next_booked_index()
-        await state.update_data(available_ids=available_ids)
-    await change_order_see(callback, state, -1)
 
 
 def register_handlers_worker(dp: Dispatcher):
@@ -253,7 +283,3 @@ def register_handlers_worker(dp: Dispatcher):
     dp.register_callback_query_handler(prev_order_see, text='prev_order', state=Form.select_order_st)
     dp.register_callback_query_handler(accept_order, text='accept_order', state=Form.select_order_st)
     dp.register_callback_query_handler(see_my_booked_orders, text='worker_orders', state=Form.worker_lk)
-    dp.register_callback_query_handler(next_order_see_booked, text='next_oder_booked',
-                                       state=Form.select_order_st_booked)
-    dp.register_callback_query_handler(prev_order_see_booked, text='prev_oder_booked',
-                                       state=Form.select_order_st_booked)

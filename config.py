@@ -6,4 +6,4 @@ DB_CONFIG = {
     'password': '2pacalive228biggie',
     'db': 'telegadb'
 }
-specialists = ['chinanumb2', 'burzhuykaa']
+specialists = ['chinanumb2', 'burzhuykaa','fullmetalldickk']

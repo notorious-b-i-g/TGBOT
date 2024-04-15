@@ -49,39 +49,22 @@ class AlbumMiddleware(BaseMiddleware):
 # @dp.callback_query_handler(text='make_order', state=Form.main_menu)
 async def make_order(call: types.CallbackQuery, state: FSMContext):
     await call.answer()
-    await state.set_state(Form.make_order)
-    await call.message.edit_text('Выбор специалиста', reply_markup=spec_keyboard)
-
-
-# @dp.callback_query_handler(lambda callback: callback.data.startswith('spec_'), state='*')
-async def process_spec_selection(callback: types.CallbackQuery, state: FSMContext):
-    # Загрузка списка специалистов из JSON-файла
-    with open('spec_names.json', 'r', encoding='utf-8') as f:
-        spec_names = json.load(f)
-
-    # Получаем callback.data и преобразуем в имя специалиста
-    specialist_key = callback.data
-    specialist_name = spec_names.get(specialist_key, 'Неизвестный специалист')  # Получаем имя или возвращаем заглушку
-
-    await callback.answer()  # Подтверждаем обработку колбэка
-    await callback.message.answer(f'Вы выбрали специалиста {specialist_name}. Теперь опишите свою задачу.')
-
-    async with state.proxy() as data_dict:
-        data_dict['specialist'] = specialist_key  # Сохраняем ключ выбранного специалиста в словаре состояния
-        data_dict['specialist_name'] = specialist_name  # Опционально сохраняем и имя специалиста
-
+    await call.message.answer("Напишите комментарий к работе")
     await state.set_state(Form.problem_description)
 
 
+# @dp.callback_query_handler(lambda callback: callback.data.startswith('spec_'), state='*')
 # @dp.message_handler(state=Form.problem_description)
-async def what_to_do(message: types.Message, state: FSMContext):
+async def comment(message: types.Message, state: FSMContext):
     problem = message.text
+    photos = []
     async with state.proxy() as data_dict:
-        data_dict['photos'] = []
+        data_dict['comment_description'] = problem  # Сохраняем описание проблемы в словаре состояния
+        data_dict['photos'] = photos
 
     await message.answer('Прикрепите фотографии работы')
     # Далее вы можете выполнить любые необходимые действия с данными о специалисте и описанием проблемы
-    await Form.wait_foto.set()
+    await Form.wait_foto_finish.set()
 
 
 
@@ -110,7 +93,7 @@ async def work_foto(message: types.Message, album: List[types.Message], state: F
 
         await message.answer_media_group(media=media_group)
         await message.answer(text='Всё верно?', reply_markup=confirm_order)
-        await Form.order_confirming.set()  # Переводим состояние в подтверждение заказа
+        await Form.order_confirming_finish.set()  # Переводим состояние в подтверждение заказа
 
 
 # @message_handler(add_one_foto, content_types=['photo'], state=Form.wait_foto)
@@ -132,26 +115,29 @@ async def add_one_foto(message: types.Message, state: FSMContext):
 
     await message.answer_media_group(media=media_group)
     await message.answer(text='Всё верно?', reply_markup=confirm_order)
-    await Form.order_confirming.set()
+    print(12345 , 'add_one_foto')
+    await Form.order_confirming_finish.set()
 
 
 # @callback_query_handler(confirm_of_order, text='edit_order', state=Form.order_confirming)
-async def confirm_of_order(callback: types.CallbackQuery, state: FSMContext):
+async def confirm_of_order_finish(callback: types.CallbackQuery, state: FSMContext):
+
     query = '''
-    INSERT INTO tasks (specialist_name, problem_description, photo_ids, client_name, post_time, order_status)
-    VALUES (%s, %s, %s, %s, %s, %s)
+    INSERT INTO tasks (comment_description, finish_photo_ids, end_time)
+    VALUES (%s, %s, %s)
     '''
     user_id = callback.from_user.id  # Получаем ID пользователя из объекта callback
     async with state.proxy() as data_dict:
-        specialist_name = data_dict.get('specialist_name', '')
-        problem = data_dict.get('problem_description', '')
+        problem = data_dict.get('comment_description', '')
         photos = data_dict.get('photos', [])  # Убедитесь, что 'photos' сохраняются в состоянии
 
     current_datetime = datetime.datetime.now()
     formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    print("работает не там")
+
     json_file_ids = json.dumps(photos)
-    params = (specialist_name, problem, json_file_ids, callback.from_user.username, formatted_datetime, 'available')
+    print(problem, json_file_ids, formatted_datetime)
+
+    params = (problem, json_file_ids, formatted_datetime)
     await insert_task_with_photos(query, params)  # Передача параметров корректно
     await callback.message.edit_text(text='Главное меню', reply_markup=main_menu_kb)
     await Form.main_menu.set()
@@ -160,21 +146,21 @@ async def confirm_of_order(callback: types.CallbackQuery, state: FSMContext):
 # @callback_query_handler(edit_spec_in_order, text='edit_spec', state=Form.order_confirming)
 async def edit_sth_in_order(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='Редактировать:', reply_markup=edit_order_kb)
-    await Form.edit_order_st.set()
+    await Form.edit_order_st_finish.set()
 
 
 # @callback_query_handler(edit_photo, text='edit_photo', state=Form.edit_order_st)
 async def edit_photo(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='Добавить ещё фото или добавить заново', reply_markup=edit_photo_kb)
     await bot.answer_callback_query(callback.id)
-    await Form.edit_photo_st.set()
+    await Form.edit_photo_st_finish.set()
 
 
 # @callback_query_handler(wait_one_more_photo, text='add_more_photo', state=Form.edit_photo_st)
 async def wait_one_more_photo(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer('Прикрепите фотографии работы')
     await bot.answer_callback_query(callback.id)
-    await Form.wait_foto.set()
+    await Form.wait_foto_finish.set()
 
 
 async def reset_photos(callback: types.CallbackQuery, state: FSMContext):
@@ -183,7 +169,7 @@ async def reset_photos(callback: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data_dict:
         data_dict['photos'] = []
 
-    await Form.wait_foto.set()
+    await Form.wait_foto_finish.set()
 
 
 # @message_handler(reset_state, commands=['reset'], state='*')
@@ -193,19 +179,19 @@ async def reset_state(message: types.Message, state: FSMContext):
     #await Form.main_menu.set()
 
 
-def register_handlers_make_order(dp: Dispatcher):
-    dp.register_callback_query_handler(make_order, text='make_order', state=Form.main_menu)
-    dp.register_callback_query_handler(process_spec_selection, lambda callback: callback.data.startswith('spec_'),state=Form.make_order)
-    dp.register_message_handler(what_to_do, state=Form.problem_description)
-    dp.register_message_handler(work_foto, is_media_group=True, content_types=types.ContentType.ANY, state=Form.wait_foto)
-    dp.register_message_handler(add_one_foto, content_types=['photo'], state=Form.wait_foto)
+def register_handlers_finish_order(dp: Dispatcher):
+    dp.register_callback_query_handler(make_order, text='submit_order', state=Form.select_order_st)
+    dp.register_message_handler(comment, state=Form.problem_description)
+
+    dp.register_message_handler(work_foto, is_media_group=True, content_types=types.ContentType.ANY, state=Form.wait_foto_finish)
+    dp.register_message_handler(add_one_foto, content_types=['photo'], state=Form.wait_foto_finish)
 
     # Редактирование заявки
-    dp.register_callback_query_handler(confirm_of_order, text='all_right', state=Form.order_confirming)
-    dp.register_callback_query_handler(edit_sth_in_order, text='edit_order', state=Form.order_confirming)
-    dp.register_callback_query_handler(edit_photo, text='edit_photo', state=Form.edit_order_st)
-    dp.register_callback_query_handler(wait_one_more_photo, text='add_more_photo', state=Form.edit_photo_st)
-    dp.register_callback_query_handler(reset_photos, text='reset_photo', state=Form.edit_photo_st)
+    dp.register_callback_query_handler(confirm_of_order_finish, text='all_right', state=Form.order_confirming_finish)
+    dp.register_callback_query_handler(edit_sth_in_order, text='edit_order', state=Form.order_confirming_finish)
+    dp.register_callback_query_handler(edit_photo, text='edit_photo', state=Form.edit_order_st_finish)
+    dp.register_callback_query_handler(wait_one_more_photo, text='add_more_photo', state=Form.edit_photo_st_finish)
+    dp.register_callback_query_handler(reset_photos, text='reset_photo', state=Form.edit_photo_st_finish)
 
     # Reset
     dp.register_message_handler(reset_state, commands=['reset'], state='*')
