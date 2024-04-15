@@ -40,3 +40,5 @@ class Form(StatesGroup):
     order_confirming_finish = State()
     edit_order_st_finish = State()
     edit_photo_st_finish = State()
+    problem_description_finish = State()
+    edit_prob_st_finish = State()

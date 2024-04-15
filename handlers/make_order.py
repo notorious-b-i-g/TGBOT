@@ -77,6 +77,7 @@ async def process_spec_selection(callback: types.CallbackQuery, state: FSMContex
 async def what_to_do(message: types.Message, state: FSMContext):
     problem = message.text
     async with state.proxy() as data_dict:
+        data_dict['problem_description'] = problem
         data_dict['photos'] = []
 
     await message.answer('Прикрепите фотографии работы')

@@ -144,6 +144,8 @@ async def get_next_booked_index(worker_name):
     tasks = await get_data(query, ())
     # Assuming tasks is a list of tuples, where each tuple contains one element (id)
     return [task[0] for task in tasks]  # Extracting the first element of each tuple directly
+
+
 async def change_order_see(callback: types.CallbackQuery, state: FSMContext, step: int):
     data = await state.get_data()
     available_ids = data.get('available_ids', [])
@@ -241,7 +243,7 @@ async def see_my_booked_orders(callback: types.CallbackQuery, state: FSMContext)
         first_available_id = available_ids[0]  # Берем первый ID из списка доступных
 
         # Очищаем предыдущие данные
-        await state.update_data(message_ids=message_ids, index=0, available_ids=available_ids, current_index=0)
+        await state.update_data(message_ids=message_ids, index=first_available_id, available_ids=available_ids, current_index=0)
 
         media_group = await send_order_by_id(first_available_id)
         messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)

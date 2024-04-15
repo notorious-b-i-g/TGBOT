@@ -68,3 +68,4 @@ exit_wrk_lk_b = InlineKeyboardButton(text='Выход', callback_data='exit_wrk_
 select_order_kb.add(decline_order_b)
 select_order_kb.add(prev_order_b, next_order_b)
 select_order_kb.add(exit_wrk_lk_b)
+
