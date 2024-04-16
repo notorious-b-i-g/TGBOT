@@ -74,8 +74,7 @@ async def comment(message: types.Message, state: FSMContext):
 async def work_foto(message: types.Message, album: List[types.Message], state: FSMContext):
     media_group = types.MediaGroup()
     async with state.proxy() as data_dict:
-        specialist_name = data_dict.get('specialist_name', '')
-        problem = data_dict.get('problem_description', '')
+        problem = data_dict.get('comment_description', '')
         photos = data_dict.get('photos')
 
         # Формируем медиа группу из полученного альбома
@@ -85,7 +84,7 @@ async def work_foto(message: types.Message, album: List[types.Message], state: F
                 photos.append(photo.file_id)
                 if idx == 0:
                     # Для первой фотографии добавляем подпись
-                    media_group.attach_photo(photo.file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}')
+                    media_group.attach_photo(photo.file_id, caption=f'Комментарий работы: {problem}')
                 else:
                     media_group.attach_photo(photo.file_id)
             else:
@@ -102,8 +101,7 @@ async def work_foto(message: types.Message, album: List[types.Message], state: F
 async def add_one_foto(message: types.Message, state: FSMContext):
     photo = message.photo[-1]  # Берем последний элемент списка, который является самым большим по размеру
     async with state.proxy() as data_dict:
-        specialist_name = data_dict.get('specialist_name', '')  # Получение значения по ключу specialist_name
-        problem = data_dict.get('problem_description', '')
+        problem = data_dict.get('comment_description', '')
         photos = data_dict.get('photos')
         photos.append(photo.file_id)  # Добавление нового фото в список
 
@@ -111,7 +109,7 @@ async def add_one_foto(message: types.Message, state: FSMContext):
     for file_id in photos:
         if photos.index(file_id) == 0:
             # Для первой фотографии добавляем подпись
-            media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}')
+            media_group.attach_photo(file_id, caption=f'Комментарий работы: {problem}')
         else:
             media_group.attach_photo(file_id)
 
@@ -131,7 +129,7 @@ async def get_user_id_by_name(bot: Bot, username: str) -> int:
         return user.id
     except Exception as e:
         print(f"Error getting user ID: {e}")
-        return None
+        return 1
 
 
 # @callback_query_handler(confirm_of_order, text='edit_order', state=Form.order_confirming)
@@ -155,21 +153,23 @@ async def confirm_of_order_finish(callback: types.CallbackQuery, state: FSMConte
     json_file_ids = json.dumps(photos)
     params = (problem, json_file_ids, formatted_datetime, 'completed', order_id)
     print(params)
-    await insert_task_with_photos(query, params)  # Передача параметров корректно
+    await insert_task_with_photos(query, params)
     print(order_id)
     query = f"SELECT chat_id FROM tasks WHERE id = %s"
     chat_id = await get_data(query, order_id)
     chat_id = int(str(chat_id[0])[2:-3])
 
-    media_group = types.MediaGroup()
+    media_group_for_client = types.MediaGroup()
+
     for file_id in photos:
         if photos.index(file_id) == 0:
             # Для первой фотографии добавляем подпись
-            media_group.attach_photo(file_id, caption=f'Специалист: {callback.from_user}\nЗадача: {problem}')
-        else:
-            media_group.attach_photo(file_id)
+            media_group_for_client.attach_photo(file_id, caption=f'Ваша заявка выполнена')
 
-    await bot.send_media_group(chat_id=chat_id, media=media_group)
+        else:
+            media_group_for_client.attach_photo(file_id)
+
+    await bot.send_media_group(chat_id=chat_id, media=media_group_for_client)
     await callback.message.edit_text(text='Главное меню', reply_markup=main_menu_kb)
     await Form.main_menu.set()
 
@@ -187,13 +187,31 @@ async def edit_photo(callback: types.CallbackQuery, state: FSMContext):
     await Form.edit_photo_st_finish.set()
 
 
+# @callback_query_handler(edit_comment, text='edit_prob_finish', state=Form.edit_order_st_finish)
 async def edit_comment(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer('Ввидите новое описание проделанной работы')
     await bot.answer_callback_query(callback.id)
     await Form.edit_prob_st_finish.set()
 
+
 async def edit_comment_finish(message: types.Message, state: FSMContext):
-    pass
+    problem = message.text
+    async with state.proxy() as data_dict:
+        data_dict['comment_description'] = problem  # Изменяем описание проблемы в словаре состояния
+        photos = data_dict['photos']
+
+    media_group = types.MediaGroup()
+    for file_id in photos:
+        if photos.index(file_id) == 0:
+            # Для первой фотографии добавляем подпись
+            media_group.attach_photo(file_id, caption=f'Комментарий работы:\n{problem}')
+
+        else:
+            media_group.attach_photo(file_id)
+    await message.answer_media_group(media=media_group)
+
+    await message.answer(text='Всё верно?', reply_markup=confirm_order)
+    await Form.order_confirming_finish.set()
 
 
 # @callback_query_handler(wait_one_more_photo, text='add_more_photo', state=Form.edit_photo_st)
@@ -229,7 +247,9 @@ def register_handlers_finish_order(dp: Dispatcher):
     # Редактирование заявки
     dp.register_callback_query_handler(confirm_of_order_finish, text='all_right', state=Form.order_confirming_finish)
     dp.register_callback_query_handler(edit_sth_in_order, text='edit_order', state=Form.order_confirming_finish)
-    dp.register_callback_query_handler(edit_photo, text='edit_photo', state=Form.edit_order_st_finish)
+    dp.register_callback_query_handler(edit_comment, text='edit_prob_finish', state=Form.edit_order_st_finish)
+    dp.register_message_handler(edit_comment_finish, state=Form.edit_prob_st_finish)
+    dp.register_callback_query_handler(edit_photo, text='edit_photo_finish', state=Form.edit_order_st_finish)
     dp.register_callback_query_handler(wait_one_more_photo, text='add_more_photo', state=Form.edit_photo_st_finish)
     dp.register_callback_query_handler(reset_photos, text='reset_photo', state=Form.edit_photo_st_finish)
 

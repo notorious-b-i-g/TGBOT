@@ -43,6 +43,6 @@ select_order_kb_booked.add(exit_wrk_lk_b)
 
 edit_order_kb_finish = InlineKeyboardMarkup(row_width=1)
 b_edit_photo_f = InlineKeyboardButton(text='Фото', callback_data='edit_photo_finish')
-b_edit_prob_f = InlineKeyboardButton(text='Задачу', callback_data='edit_prob_finish')
+b_edit_prob_f = InlineKeyboardButton(text='Комментарий', callback_data='edit_prob_finish')
 edit_order_kb_finish.add(b_edit_prob_f)
 edit_order_kb_finish.add(b_edit_photo_f)

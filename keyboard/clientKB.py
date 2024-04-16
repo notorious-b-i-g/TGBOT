@@ -4,7 +4,7 @@ b1 = KeyboardButton('/start')
 
 
 main_menu_kb = InlineKeyboardMarkup(row_width=2)
-mmb1 = InlineKeyboardButton(text="Составить заявку", callback_data='make_order')
+mmb1 = InlineKeyboardButton(text="Составить заявку🖋", callback_data='make_order')
 mmb2 = InlineKeyboardButton(text='Мои заявки', callback_data='my_orders')
 mmb3 = InlineKeyboardButton(text='Информация', callback_data='info')
 mmb4 = InlineKeyboardButton(text='Настройки', callback_data='settings')

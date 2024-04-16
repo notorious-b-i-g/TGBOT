@@ -165,6 +165,33 @@ async def edit_sth_in_order(callback: types.CallbackQuery, state: FSMContext):
     await Form.edit_order_st.set()
 
 
+async def edit_problem(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer('Ввидите новое описание задачи')
+    await bot.answer_callback_query(callback.id)
+    await Form.edit_prob_st.set()
+
+
+async def edit_problem_dsc(message: types.Message, state: FSMContext):
+    problem = message.text
+    async with state.proxy() as data_dict:
+        data_dict['comment_description'] = problem  # Изменяем описание проблемы в словаре состояния
+        photos = data_dict['photos']
+        specialist_name = data_dict.get('specialist_name', '')
+
+    media_group = types.MediaGroup()
+    for file_id in photos:
+        if photos.index(file_id) == 0:
+            # Для первой фотографии добавляем подпись
+            media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}')
+
+        else:
+            media_group.attach_photo(file_id)
+    await message.answer_media_group(media=media_group)
+
+    await message.answer(text='Всё верно?', reply_markup=confirm_order)
+    await Form.order_confirming.set()
+
+
 # @callback_query_handler(edit_photo, text='edit_photo', state=Form.edit_order_st)
 async def edit_photo(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='Добавить ещё фото или добавить заново', reply_markup=edit_photo_kb)
@@ -205,6 +232,10 @@ def register_handlers_make_order(dp: Dispatcher):
     # Редактирование заявки
     dp.register_callback_query_handler(confirm_of_order, text='all_right', state=Form.order_confirming)
     dp.register_callback_query_handler(edit_sth_in_order, text='edit_order', state=Form.order_confirming)
+
+    dp.register_callback_query_handler(edit_problem, text='edit_prob', state=Form.edit_order_st)
+    dp.register_message_handler(edit_problem_dsc, state=Form.edit_prob_st)
+
     dp.register_callback_query_handler(edit_photo, text='edit_photo', state=Form.edit_order_st)
     dp.register_callback_query_handler(wait_one_more_photo, text='add_more_photo', state=Form.edit_photo_st)
     dp.register_callback_query_handler(reset_photos, text='reset_photo', state=Form.edit_photo_st)
