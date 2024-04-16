@@ -138,22 +138,23 @@ async def add_one_foto(message: types.Message, state: FSMContext):
 
 # @callback_query_handler(confirm_of_order, text='edit_order', state=Form.order_confirming)
 async def confirm_of_order(callback: types.CallbackQuery, state: FSMContext):
+    # SQL query updated to include user_id field
     query = '''
-    INSERT INTO tasks (specialist_name, problem_description, photo_ids, client_name, post_time, order_status)
-    VALUES (%s, %s, %s, %s, %s, %s)
+    INSERT INTO tasks (specialist_name, problem_description, photo_ids, client_name, post_time, order_status, chat_id)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
     '''
-    user_id = callback.from_user.id  # Получаем ID пользователя из объекта callback
+    chat_id = callback.message.chat.id  # Получаем ID пользователя из объекта callback
     async with state.proxy() as data_dict:
         specialist_name = data_dict.get('specialist_name', '')
         problem = data_dict.get('problem_description', '')
-        photos = data_dict.get('photos', [])  # Убедитесь, что 'photos' сохраняются в состоянии
+        photos = data_dict.get('photos', [])  # Ensure photos are saved in state
 
     current_datetime = datetime.datetime.now()
     formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    print("работает не там")
     json_file_ids = json.dumps(photos)
-    params = (specialist_name, problem, json_file_ids, callback.from_user.username, formatted_datetime, 'available')
-    await insert_task_with_photos(query, params)  # Передача параметров корректно
+    # Update the parameters to include user_id
+    params = (specialist_name, problem, json_file_ids, callback.from_user.username, formatted_datetime, 'available', chat_id)
+    await insert_task_with_photos(query, params)  # Correct parameter passing
     await callback.message.edit_text(text='Главное меню', reply_markup=main_menu_kb)
     await Form.main_menu.set()
 

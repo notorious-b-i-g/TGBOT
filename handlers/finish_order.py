@@ -7,6 +7,7 @@ from create_bot import bot, FSMContext
 import json
 import asyncio
 import datetime
+from aiogram import Bot
 
 from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
@@ -120,15 +121,29 @@ async def add_one_foto(message: types.Message, state: FSMContext):
     await Form.order_confirming_finish.set()
 
 
+async def get_user_id_by_name(bot: Bot, username: str) -> int:
+    print(username, 'до редактирование')
+    username = str(username[0])
+    username = "@" + username[2:-3]
+    print(username, 'после')
+    try:
+        user = await bot.get_chat(username)
+        return user.id
+    except Exception as e:
+        print(f"Error getting user ID: {e}")
+        return None
+
+
 # @callback_query_handler(confirm_of_order, text='edit_order', state=Form.order_confirming)
 async def confirm_of_order_finish(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     order_id = data.get('index')
     query = '''
-    UPDATE tasks 
+    UPDATE tasks
     SET comment_description = %s, finish_photo_ids = %s, end_time = %s, order_status = %s 
     WHERE id = %s;
     '''
+
     user_id = callback.from_user.id  # Получаем ID пользователя из объекта callback
     async with state.proxy() as data_dict:
         problem = data_dict.get('comment_description', '')
@@ -138,10 +153,23 @@ async def confirm_of_order_finish(callback: types.CallbackQuery, state: FSMConte
     formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
     json_file_ids = json.dumps(photos)
-    print(problem, json_file_ids, formatted_datetime, order_id)
-
     params = (problem, json_file_ids, formatted_datetime, 'completed', order_id)
+    print(params)
     await insert_task_with_photos(query, params)  # Передача параметров корректно
+    print(order_id)
+    query = f"SELECT chat_id FROM tasks WHERE id = %s"
+    chat_id = await get_data(query, order_id)
+    chat_id = int(str(chat_id[0])[2:-3])
+
+    media_group = types.MediaGroup()
+    for file_id in photos:
+        if photos.index(file_id) == 0:
+            # Для первой фотографии добавляем подпись
+            media_group.attach_photo(file_id, caption=f'Специалист: {callback.from_user}\nЗадача: {problem}')
+        else:
+            media_group.attach_photo(file_id)
+
+    await bot.send_media_group(chat_id=chat_id, media=media_group)
     await callback.message.edit_text(text='Главное меню', reply_markup=main_menu_kb)
     await Form.main_menu.set()
 

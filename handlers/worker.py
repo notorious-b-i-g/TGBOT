@@ -105,7 +105,7 @@ async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
                 *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
         available_ids = await get_next_available_index()
         if not available_ids:
-            await callback.message.edit_text("Нет доступных заявок.", reply_markup=worker_lk_kb)
+            await callback.message.edit_text("Нет доступных заявок для авторизации.", reply_markup=worker_lk_kb)
             return
         await callback.message.delete()
 
