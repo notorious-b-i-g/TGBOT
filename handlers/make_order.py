@@ -50,7 +50,7 @@ class AlbumMiddleware(BaseMiddleware):
 async def make_order(call: types.CallbackQuery, state: FSMContext):
     await call.answer()
     await state.set_state(Form.make_order)
-    await call.message.edit_text('Выбор специалиста', reply_markup=spec_keyboard)
+    await call.message.edit_text('Пожалуйста выберите специласита', reply_markup=spec_keyboard)
 
 
 # @dp.callback_query_handler(lambda callback: callback.data.startswith('spec_'), state='*')

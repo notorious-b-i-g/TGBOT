@@ -26,6 +26,7 @@ async def back_2(callback: types.CallbackQuery, state: FSMContext):
 
 
 async def registration(callback: types.CallbackQuery, state: FSMContext):
+    print(1342412)
     await state.update_data(user_id=callback.from_user.id, username=callback.from_user.username)
     await Form.registration.set()
     await callback.message.edit_text('Укажите вашу специальность', reply_markup=worker_spec_select_kb)
@@ -54,9 +55,11 @@ async def confirm_yes(callback: types.CallbackQuery, state: FSMContext):
     #await bot.send_message(571294067,
     #                       f"Пользователь {user_data['username']} ({user_data['user_id']}) хочет зарегистрироваться как {user_data['specialist_name']}.")
     query = "INSERT INTO Users (username, userid, specialist_name) VALUES (%s, %s, %s)"
+    print(user_data['username'], str(user_data['user_id']), user_data['specialist_name'])
     await insert_data(query, user_data['username'], str(user_data['user_id']), user_data['specialist_name'])
     await Form.main_menu.set()
-    await callback.message.edit_text('Запрос на регистрацию отправлен.')
+    await callback.message.edit_text('Запрос на регистрацию отправлен.' )
+    await callback.message.answer('Добро пожаловать' , reply_markup=main_menu_kb )
 
 
 # @callback_query_handler(confirm_no, lambda callback: callback.data == 'no', state=Form.confirm_registration)
@@ -272,7 +275,7 @@ def register_handlers_worker(dp: Dispatcher):
     dp.register_callback_query_handler(see_my_order, text='lk_worker', state=Form.main_menu)
     dp.register_callback_query_handler(back_2, lambda callback: callback.data == 'back_2', state='*')
     dp.register_callback_query_handler(registration, lambda callback: callback.data == 'registration',
-                                       state=Form.main_menu)
+                                       state=Form.worker_lk)
     dp.register_callback_query_handler(process_registration, lambda callback: callback.data.startswith('spec_'),
                                        state=Form.registration)
     dp.register_callback_query_handler(confirm_yes, lambda callback: callback.data == 'yes',

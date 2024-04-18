@@ -85,7 +85,8 @@ async def remove_request(call: types.CallbackQuery):
     # Удаляем данные пользователя из таблицы users
     query = "DELETE FROM users WHERE userid = %s"
     await insert_data(query, (user_id,))
-
++3
+3
 
 def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(admin_lk_show, commands=['admin'])
