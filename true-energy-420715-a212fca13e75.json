@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "true-energy-420715",
+  "private_key_id": "a212fca13e75946c07d513f74a2c185cfe6ea5b9",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC7XlaG1eQwAalu\nOpyG2p1dOSwQd1OyE8ATdUqMzrO8zL5ILl2KON0jewGbRoEdPtz27R0hnx/fvwej\n/HvnTEqSxxMx5Q9c8Z37WGVr81KsB9sWWkirJuAhLdBsuPjxRIq40FKiSXWrCUzf\nSgnSchnYkwn7SYIP5OnVSJ3NoHcLWW5JlevhfI82XavzdQJO91wIqsjkiko6PIPv\n3qoTRtQ/4lJA1EhdTsaCk4fwz8WjFQjlJdLigBoGZPgYJ2Yka0r0bgSPnCh2ZwwO\nJtq4BrlTotnX3DA6PlZ2QJoWxLqmKP5s/CYd1vBKCxmSpNkdxKeDaIr19Pj4Nx8q\nJ55ll0cVAgMBAAECggEAUGIElQwmPUI5QgT7Kg+X+2qPsPDAg2FdwftL5GS5T4I3\nEBh0INyMYrBe3BK/SaCyg2zuVoJB1mfKC1xCe9SLGbU2Uu2GTcWKlU4zFMDq8srb\n/xb0nhirhxB0nnAsvLU/HlKhYOZLCPmQdSr6U8KHvBY47gl3NwJqHwpsSM9Swxb6\n/bIelzDS9Qef8Z1yuT1trlGe1GFidSMt1lui1GF6UkTJYyqwktrlxq7+mMuwMEWR\nP2OC+caCI5MXKD8vaQEdi4+mt9tzK+xvNnDgN4LJq/AsBi/DLavvssDy7lcL3e6w\nfLhJ+Cu+AlA5eA6VlvzRshIqt4ZG60Y1BENbTymJcQKBgQDeDxoVEBUGrECuADKF\nPIensbNwxh7SQQbfRWU5SjZEoOegwURAvCk0d9GAOE58fWan3275BcbgypjnSlRt\nWBplQTbDfitM6UIaRu7c5jMumBxsJK4NpLSPc/xC0abq3q/I8MPo6DEmoRTmGyvE\n99qtfHW4Az/xWJMYSOqIobDfWwKBgQDYAdb18hQ4Uxg/mu1e5C5NkDBw8H3VzmaH\nZ/5UDKiORphAcwiC5iHQO+HZnT3cwpCcDSMblu2iLbpEfaQjXztQJrHJ3kAQHKUU\nbKPYTY5VBhj8MSkrYoVk+gevc1o/6L0TJWLTn0m7sTV3K3/NL8MSxEzZMm8d03T4\nCMBijaAuTwKBgBnI8yRi+64Mrm4GA9fI0Y+9aLK9rrKHbn7alghy/540ePEHwB8s\nOjSnfSJAZ4y5GwR/Q2mTLCbKH7srvGX+BwKe8fb9XZXOuChI+E+aQ3MzoolEMRnQ\neE74DuDLa3B2bz8MBhOzcpGjvsOBgDGc/j2K6Dh32CL0QBBf1ywKanllAoGAbO2Y\nklRuf+zfaIvfMiANfY297+ZG/r/kElqN9aKgiYbuFmosG56j5JeeEBhsbtwrApbZ\nYntdAJDgwtM9J51JkuTAeVU7pyRa1w7mHRkXMqctiFfeNAOt0zsHDyIzm9DpMDOF\nP8Su8RivJpZoD3gLfnZBbrIxOLA+5ym6orha058CgYB085ApI+0Q02piArk+AT47\nYPjYbKPwCrm20gW/qzyrfC1y8qTonQNFKlJkPWe5b+d0rgoUJBMXQoX6t9vnALi+\noFtVHbivZozGK+MvZzi+XK/5cE0u21lAHnwRWMBLxW6oL3zB2gbSNQdJBiVSpR06\nwxUewRbwP0FDWijxgAGR7w==\n-----END PRIVATE KEY-----\n",
+  "client_email": "fullpac@true-energy-420715.iam.gserviceaccount.com",
+  "client_id": "108945918013111128287",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fullpac%40true-energy-420715.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
