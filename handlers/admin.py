@@ -131,7 +131,7 @@ async def input_time_interval(message: types.Message, state: FSMContext):
 async def load_to_excel_data(start_date, end_date):
     client = authenticate_google_docs()
     sheet = client.open('telegaGTb').sheet1
-
+    end_date = end_date[0:-1] + str(int(end_date[-1])+1)
     query = "SELECT specialist_name, problem_description, post_time, end_time, order_status, " \
             "worker_name, client_name, comment_description FROM tasks WHERE post_time BETWEEN %s AND %s"
     tasks = await get_data(query, (start_date, end_date))
