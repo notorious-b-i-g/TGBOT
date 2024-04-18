@@ -5,9 +5,11 @@ import json
 
 from keyboard.adminKB import *
 from config import specialists
-from db import insert_data,get_data,insert_task_with_photos
+from db import insert_data, get_data, insert_task_with_photos
+from utils.google_sheets import *
 
 
+# @message_handler(admin_lk_show, commands=['admin'])
 async def admin_lk_show(message: types.Message):
     user_id = message.from_user.username
     print(user_id)
@@ -17,7 +19,7 @@ async def admin_lk_show(message: types.Message):
     else:
         await bot.send_message(message.chat.id, 'Пошёл нахуй')
 
-
+# @callback_query_handler(edit_registred_users, text='edit_users', state=Form.admin_lk_st)
 async def edit_registred_users(call: types.CallbackQuery):
     await bot.answer_callback_query(call.id)
     query = "SELECT * FROM registered_users"
@@ -34,6 +36,7 @@ async def edit_registred_users(call: types.CallbackQuery):
         await bot.send_message(call.message.chat.id, formatted_user, reply_markup=keyboard)
 
 
+# @callback_query_handler(remove_user, lambda call: call.data.startswith('remove_user_'), state=Form.admin_lk_st)
 async def remove_registered_user(call: types.CallbackQuery):
     # Извлекаем user_id из callback_data
     user_id = call.data.split("_")[2]
@@ -44,6 +47,7 @@ async def remove_registered_user(call: types.CallbackQuery):
     await bot.delete_message(call.message.chat.id, call.message.message_id)
 
 
+# @callback_query_handler(view_requests, text='show_req', state=Form.admin_lk_st)
 async def view_requests(call: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(call.id)
     # Получаем заявки из базы данных
@@ -62,6 +66,7 @@ async def view_requests(call: types.CallbackQuery, state: FSMContext):
         await bot.send_message(call.message.chat.id, formatted_request, reply_markup=keyboard)
 
 
+# @callback_query_handler(accept_request, lambda call: call.data.startswith('accept_'), state=Form.admin_lk_st)
 async def accept_request(call: types.CallbackQuery):
     # Извлекаем user_id из callback_data
     user_id = call.data.split("_")[1]
@@ -78,6 +83,7 @@ async def accept_request(call: types.CallbackQuery):
     await insert_data(query, (user_id,))
 
 
+# @callback_query_handler(remove_request, lambda call: call.data.startswith('remove_'), state=Form.admin_lk_st)
 async def remove_request(call: types.CallbackQuery):
     # Извлекаем user_id из callback_data
     user_id = call.data.split("_")[1]
@@ -85,11 +91,74 @@ async def remove_request(call: types.CallbackQuery):
     # Удаляем данные пользователя из таблицы users
     query = "DELETE FROM users WHERE userid = %s"
     await insert_data(query, (user_id,))
-+3
-3
+
+
+async def load_to_excel(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text('Укажите срок выгрузки или введите свой в формате гггг-мм-дд', reply_markup=excel_load_kb)
+    await Form.admin_excel_load.set()
+
+
+def row_exists(sheet, row_to_check):
+    existing_rows = sheet.get_all_values()  # Получаем все строки из листа
+    for row in existing_rows:
+        # Преобразуем все None в строки в строках для сравнения
+        formatted_row = [str(item) if item is not None else "" for item in row]
+        # Преобразуем row_to_check аналогичным образом
+        formatted_row_to_check = [str(item) if item is not None else "" for item in row_to_check]
+        print(formatted_row, 'in_table')
+        if formatted_row == formatted_row_to_check:
+            return True
+    return False
+
+# @callback_query_handler(load_to_excel_data, lambda call: call.data.startswith('month_'), state=Form.admin_excel_load)
+async def get_time_interval(callback: types.CallbackQuery, state: FSMContext):
+    start_date, end_date = get_time_range(callback.data)
+    await load_to_excel_data(start_date, end_date)
+    await callback.message.edit_text('Данные успешно загружены', reply_markup=admin_lk_kb)
+    await Form.admin_lk_st.set()
+
+
+async def input_time_interval(message: types.Message, state: FSMContext):
+    time_input = message.text
+    print(time_input)
+    start_date, end_date = get_time_range(time_input)
+    print(start_date, end_date)
+    await load_to_excel_data(start_date, end_date)
+    await message.answer('Данные успешно загружены', reply_markup=admin_lk_kb)
+    await Form.admin_lk_st.set()
+
+
+async def load_to_excel_data(start_date, end_date):
+    client = authenticate_google_docs()
+    sheet = client.open('telegaGTb').sheet1
+
+    query = "SELECT specialist_name, problem_description, post_time, end_time, order_status, " \
+            "worker_name, client_name, comment_description FROM tasks WHERE post_time BETWEEN %s AND %s"
+    tasks = await get_data(query, (start_date, end_date))
+    for task in tasks:
+        spec_name = task[0]
+        prob_dsc = task[1]
+        post_time = task[2]
+        end_time = task[3]
+        order_status = task[4]
+        worker_name = task[5]
+        client_name = task[6]
+        worker_comment = task[7]
+
+        # Преобразование данных для загрузки в Google Sheets
+        row = [client_name, spec_name, prob_dsc, worker_name, worker_comment, post_time, end_time, order_status]
+        print(row, 'row')
+        if not row_exists(sheet, row):
+            sheet.append_row(row)  # Добавление строки в Google Sheet только если она уникальна
+        else:
+            print("Row already exists and was not added again.")
+
+
+
+
 
 def register_admin_handlers(dp: Dispatcher):
-    dp.register_message_handler(admin_lk_show, commands=['admin'])
+    dp.register_message_handler(admin_lk_show, commands=['admin'], state='*')
     dp.register_callback_query_handler(view_requests, text='show_req', state=Form.admin_lk_st)
     dp.register_callback_query_handler(edit_registred_users, text='edit_users', state=Form.admin_lk_st)
     dp.register_callback_query_handler(remove_registered_user, lambda call: call.data.startswith('remove_user_'),
@@ -98,3 +167,7 @@ def register_admin_handlers(dp: Dispatcher):
                                        state=Form.admin_lk_st)
     dp.register_callback_query_handler(remove_request, lambda call: call.data.startswith('remove_'),
                                        state=Form.admin_lk_st)
+    dp.register_callback_query_handler(load_to_excel, text='excel_load', state=Form.admin_lk_st)
+    dp.register_callback_query_handler(get_time_interval, lambda call: call.data.startswith('month_'),
+                                       state=Form.admin_excel_load)
+    dp.register_message_handler(input_time_interval, state=Form.admin_excel_load)

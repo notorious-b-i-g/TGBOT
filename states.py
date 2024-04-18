@@ -29,6 +29,7 @@ class Form(StatesGroup):
     # Состояния админа
     admin_lk_st = State()
     admin_show_req = State()
+    admin_excel_load = State()
 
     # Состояния работяги
     select_order_st = State()

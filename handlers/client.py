@@ -69,8 +69,6 @@ async def get_next_available_index(client_name_to_check):
     return [task[0] for task in tasks]  # Extracting the first element of each tuple directly
 
 
-
-
 async def change_order_see(callback: types.CallbackQuery, state: FSMContext, step: int):
     data = await state.get_data()
     available_ids = data.get('available_ids', [])
@@ -106,6 +104,7 @@ async def change_order_see(callback: types.CallbackQuery, state: FSMContext, ste
     new_message_ids.append(message_1.message_id)
     await state.update_data(index=order_id, current_index=current_index, message_ids=new_message_ids)
 
+
 async def send_order_by_id(order_id):
     query = "SELECT * FROM tasks WHERE id = %s"
     tasks = await get_data(query, (order_id,))  # передаём order_id как параметр
@@ -118,12 +117,23 @@ async def send_order_by_id(order_id):
         photos = json.loads(json_string)
         posted_time = task[6]
         end_time = task[7]
+        order_status = task[8]
+        if order_status == 'completed':
+            json_string = task[10]
+            photos = json.loads(json_string)
 
         media_group = types.MediaGroup()
         if photos:
             for idx, file_id in enumerate(photos):
-                if idx == 0:
+                if idx == 0 and order_status == 'available':
                     media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}\nВремя размещения: {posted_time}\nВремя на исполнение: {end_time}')
+                elif idx == 0 and order_status == 'completed':
+                    worker_name = task[4]
+                    worker_comment = task[9]
+                    media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\n'
+                    f'Задача: {problem}\nВремя размещения: {posted_time}\nВремя завершения: {end_time},\n'
+                    f'Исполнитель: {worker_name},\nКомментарий исполнителя: {worker_comment}')
+
                 else:
                     media_group.attach_photo(file_id)
         return media_group
@@ -131,6 +141,7 @@ async def send_order_by_id(order_id):
         # Обработка случая, когда задача с таким ID не найдена
         print("Задача с ID {} не найдена.".format(order_id))
         return None
+
 
 async def next_order_see(callback: types.CallbackQuery, state: FSMContext):
 

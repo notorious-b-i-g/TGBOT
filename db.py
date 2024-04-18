@@ -6,7 +6,7 @@ from config import DB_CONFIG
 async def create_pool():
     return await aiomysql.create_pool(**DB_CONFIG)
 
-async def get_data(query,params):
+async def get_data(query, params):
     pool = await create_pool()
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
