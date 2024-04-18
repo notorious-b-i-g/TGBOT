@@ -9,7 +9,7 @@ def authenticate_google_docs():
         'https://www.googleapis.com/auth/drive'
     ]
     creds = Credentials.from_service_account_file(
-        '.json',
+        'true-energy-420715-a212fca13e75.json',
         scopes=scopes
     )
     client = gspread.authorize(creds)
