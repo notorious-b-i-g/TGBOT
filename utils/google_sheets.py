@@ -29,6 +29,8 @@ def get_time_range(callback_data):
 
 
 def input_time_range(time):
+    time = int(time)
     today = datetime.now()
-    start_date = today - timedelta(time)
-    return start_date.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d')
+    end_date = today + timedelta(days=1)
+    start_date = today - timedelta(days=time)
+    return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')

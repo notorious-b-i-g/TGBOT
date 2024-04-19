@@ -94,7 +94,7 @@ async def remove_request(call: types.CallbackQuery):
 
 
 async def load_to_excel(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text('Укажите срок выгрузки или введите свой в формате гггг-мм-дд', reply_markup=excel_load_kb)
+    await callback.message.edit_text('Укажите срок выгрузки или введите свой в днях', reply_markup=excel_load_kb)
     await Form.admin_excel_load.set()
 
 
@@ -110,6 +110,7 @@ def row_exists(sheet, row_to_check):
             return True
     return False
 
+
 # @callback_query_handler(load_to_excel_data, lambda call: call.data.startswith('month_'), state=Form.admin_excel_load)
 async def get_time_interval(callback: types.CallbackQuery, state: FSMContext):
     start_date, end_date = get_time_range(callback.data)
@@ -120,9 +121,7 @@ async def get_time_interval(callback: types.CallbackQuery, state: FSMContext):
 
 async def input_time_interval(message: types.Message, state: FSMContext):
     time_input = message.text
-    print(time_input)
-    start_date, end_date = get_time_range(time_input)
-    print(start_date, end_date)
+    start_date, end_date = input_time_range(time_input)
     await load_to_excel_data(start_date, end_date)
     await message.answer('Данные успешно загружены', reply_markup=admin_lk_kb)
     await Form.admin_lk_st.set()
@@ -131,7 +130,6 @@ async def input_time_interval(message: types.Message, state: FSMContext):
 async def load_to_excel_data(start_date, end_date):
     client = authenticate_google_docs()
     sheet = client.open('telegaGTb').sheet1
-    end_date = end_date[0:-1] + str(int(end_date[-1])+1)
     query = "SELECT specialist_name, problem_description, post_time, end_time, order_status, " \
             "worker_name, client_name, comment_description FROM tasks WHERE post_time BETWEEN %s AND %s"
     tasks = await get_data(query, (start_date, end_date))
@@ -147,11 +145,11 @@ async def load_to_excel_data(start_date, end_date):
 
         # Преобразование данных для загрузки в Google Sheets
         row = [client_name, spec_name, prob_dsc, worker_name, worker_comment, post_time, end_time, order_status]
-        print(row, 'row')
         if not row_exists(sheet, row):
             sheet.append_row(row)  # Добавление строки в Google Sheet только если она уникальна
         else:
-            print("Row already exists and was not added again.")
+            pass
+            # print("Row already exists and was not added again.")
 
 
 
