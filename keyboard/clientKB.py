@@ -53,19 +53,22 @@ edit_order_kb.add(b_edit_photo)
 # Для ректирование фото
 edit_photo_kb = InlineKeyboardMarkup(row_width=1)
 b_add_photo = InlineKeyboardButton(text='Добавить ещё', callback_data='add_more_photo')
-b_remove_photo = InlineKeyboardButton(text='Удлалить фото', callback_data='remove_photo')
 b_reset_photo = InlineKeyboardButton(text='Доабавить заново', callback_data='reset_photo')
 edit_photo_kb.add(b_add_photo)
-edit_photo_kb.add(b_remove_photo)
 edit_photo_kb.add(b_reset_photo)
 
 select_order_kb = InlineKeyboardMarkup(row_width=2)
 decline_order_b = InlineKeyboardButton(text='Удалить заявку', callback_data='delete_order')
 next_order_b = InlineKeyboardButton(text='Следующая заявка', callback_data='next_oder')
 prev_order_b = InlineKeyboardButton(text='Предыдущая заявка', callback_data='prev_order')
+chat_order_b = InlineKeyboardButton(text='Чат по заявке', callback_data='chat_order')
 exit_wrk_lk_b = InlineKeyboardButton(text='Выход', callback_data='exit_wrk_lk')
 
-select_order_kb.add(decline_order_b)
+select_order_kb.add(decline_order_b, chat_order_b)
 select_order_kb.add(prev_order_b, next_order_b)
 select_order_kb.add(exit_wrk_lk_b)
 
+exit_from_chat_b = KeyboardButton(text='/выход')
+chat_kb = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+
+chat_kb.add(exit_from_chat_b)

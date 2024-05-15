@@ -30,8 +30,10 @@ decline_order_b = InlineKeyboardButton(text='Отклонить заявку', c
 next_order_b = InlineKeyboardButton(text='Следующая заявка', callback_data='next_oder')
 prev_order_b = InlineKeyboardButton(text='Предыдущая заявка', callback_data='prev_order')
 exit_wrk_lk_b = InlineKeyboardButton(text='Выход', callback_data='exit_wrk_lk')
+communicate_customer_b = InlineKeyboardButton(text='Связь с заказчиком', callback_data='comm_cust')
 
 select_order_kb.add(accept_order_b)
+select_order_kb.add(communicate_customer_b)
 select_order_kb.add(prev_order_b, next_order_b)
 select_order_kb.add(exit_wrk_lk_b)
 
@@ -46,3 +48,8 @@ b_edit_photo_f = InlineKeyboardButton(text='Фото', callback_data='edit_photo
 b_edit_prob_f = InlineKeyboardButton(text='Задачу', callback_data='edit_prob_finish')
 edit_order_kb_finish.add(b_edit_prob_f)
 edit_order_kb_finish.add(b_edit_photo_f)
+
+exit_from_chat_b = KeyboardButton(text='/выход')
+chat_kb = ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+
+chat_kb.add(exit_from_chat_b)

@@ -1,19 +1,25 @@
 import json
-
 from aiogram import types, Dispatcher
 from keyboard.workerKB import *
 from keyboard.clientKB import main_menu_kb
 from states import Form
-from create_bot import dp, bot, FSMContext
+from create_bot import dp, bot, FSMContext, storage
 from db import insert_data, get_data, insert_task_with_photos
 from config import specialists
 import asyncio
+from datetime import datetime, timedelta
+
+async def get_user_state(user_id):
+    # Получаем объект состояния для пользователя с использованием FSMContext
+    state = FSMContext(storage, chat=user_id, user=user_id)
+    user_state = await state.get_state()
+    return user_state
 
 
 # @dp.callback_query_handler(text='lk_worker', state=Form.main_menu)
 async def see_my_order(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(Form.worker_lk)
-    await call.message.edit_text('Добро пожаловать', reply_markup=worker_lk_kb)
+    await call.message.edit_text('Добро пожаловать!', reply_markup=worker_lk_kb)
     # message_wrk_lk_id = message_wrk_lk.message_id
     # await state.update_data(message_wrk_lk=message_wrk_lk_id)
 
@@ -106,6 +112,7 @@ async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
         if message_ids:
             await asyncio.gather(
                 *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+
         available_ids = await get_next_available_index()
         if not available_ids:
             await callback.message.edit_text("Нет доступных заявок для авторизации.", reply_markup=worker_lk_kb)
@@ -137,7 +144,6 @@ async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
 async def get_next_available_index():
     query = "SELECT id FROM tasks WHERE order_status = 'available' ORDER BY id"
     tasks = await get_data(query, ())
-    print(tasks)
     # Assuming tasks is a list of tuples, where each tuple contains one element (id)
     return [task[0] for task in tasks]  # Extracting the first element of each tuple directly
 
@@ -175,7 +181,7 @@ async def change_order_see(callback: types.CallbackQuery, state: FSMContext, ste
 
     new_message_ids = [msg.message_id for msg in messages]
 
-    wtd =data.get('come_from')
+    wtd = data.get('come_from')
     if wtd == 'see_my_booked':
         message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
                                                     reply_markup=select_order_kb_booked)
@@ -197,23 +203,103 @@ async def next_order_see(callback: types.CallbackQuery, state: FSMContext):
 
 # @callback_query_handler(next_order_see, text='prev_oder', state=Form.select_order_st)
 async def prev_order_see(callback: types.CallbackQuery, state: FSMContext):
-    print(state)
     if not (data := await state.get_data()).get('available_ids'):
         available_ids = await get_next_available_index()
         await state.update_data(available_ids=available_ids)
     await change_order_see(callback, state, -1)
 
-
+# @callback_query_handler(accept_order, text='accept_order', state=Form.select_order_st)
 async def accept_order(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
 
     order_id = data.get('index')  # Предположим, что ID текущего заказа хранится в состоянии
+    queue = 'SELECT order_status FROM tasks WHERE id = %s'
+    order_status_check = await get_data(queue, (order_id,))
+    if order_status_check[0][0] == 'available':
+        worker_name = callback.from_user.username  # Получаем имя пользователя, который нажал на кнопку
+        query = "UPDATE tasks SET order_status = 'booked', worker_name = %s WHERE id = %s;"
+        await insert_data(query, worker_name, order_id)
+        await callback.message.edit_text("Заказ подтверждён и забронирован.", reply_markup=select_order_kb)
+    else:
+        await callback.message.edit_text("Заявка уже недоступна.", reply_markup=select_order_kb)
 
 
-    worker_name = callback.from_user.username  # Получаем имя пользователя, который нажал на кнопку
-    query = "UPDATE tasks SET order_status = 'booked', worker_name = %s WHERE id = %s;"
-    await insert_data(query, worker_name, order_id)
-    await callback.message.edit_text("Заказ подтверждён и забронирован.", reply_markup=select_order_kb)
+
+# @callback_query_handler(accept_order, text='comm_cust', state=Form.select_order_st)
+async def open_chat_with_cust(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+
+    message_ids = data.get('message_ids', [])
+    if message_ids:
+        await asyncio.gather(
+            *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+    await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
+    loaded_messages = []
+    available_ids = data.get('available_ids', [])
+    current_index = data.get('current_index', 0)
+    order_id = available_ids[current_index]
+    query = """
+            SELECT chat.message_content, chat.worker_name
+            FROM chat
+            JOIN tasks ON chat.order_id = tasks.id
+            WHERE tasks.id = %s;
+        """
+    params = (order_id,)
+    chat_massages = await get_data(query, params)
+    for chat_message, worker_name in chat_massages:
+        message_text = f"{'Вы' if str(worker_name) == str(callback.from_user.id) else 'Заказчик'}: {chat_message}"
+
+        loaded_message = await callback.message.answer(text=message_text)
+        loaded_messages.append(loaded_message.message_id)
+    await state.update_data(message_ids=loaded_messages)
+    await Form.chat_with_customer.set()
+
+
+async def send_message_to_cust(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    message_content = message.text
+    available_ids = data.get('available_ids', [])
+    current_index = data.get('current_index', 0)
+    order_id = available_ids[current_index]
+    message_ids = data.get('message_ids', [])
+    message_ids.append(message_content.id)
+    query = """
+            SELECT chat_id
+            FROM tasks
+            WHERE id = %s;
+        """
+    params = (int(order_id),)
+    receiver_id = await get_data(query, params)
+
+    # Предполагается, что у вас есть определенные sender_id и receiver_id
+    receiver_id = int(receiver_id[0][0])
+    sender_id = message.from_user.id
+    other_user_state = await get_user_state(receiver_id)
+    if other_user_state != 'Form:chat_with_worker':
+        await bot.send_message(chat_id=receiver_id, text=f'Новое сообщение по заявке')
+    else:
+        await bot.send_message(chat_id=receiver_id, text=message_content)
+
+    send_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Получение текущего времени
+
+    query = """
+               INSERT INTO chat (sender_id, receiver_id, message_content, send_time, worker_name, client_name, order_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s);
+           """
+    await insert_data(query, sender_id, receiver_id, message_content, send_time, sender_id, receiver_id, order_id)
+
+
+async def exit_message_to_cust(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+
+    message_ids = data.get('message_ids', [])
+    if message_ids:
+        await asyncio.gather(
+            *(bot.delete_message(message.chat.id, msg_id) for msg_id in message_ids))
+    await message.answer("Чат закрыт", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer('Добро пожаловать!', reply_markup=worker_lk_kb)
+    await state.update_data(message_ids=[])
+    await Form.worker_lk.set()
 
 
 # @callback_query_handler(exit_from_orders_show, text='exit_wrk_lk', state=Form.select_order_st)
@@ -239,7 +325,7 @@ async def see_my_booked_orders(callback: types.CallbackQuery, state: FSMContext)
     if callback.from_user.username in specialists:
         available_ids = await get_next_booked_index(callback.from_user.username)
         if not available_ids:
-            await callback.message.edit_text("Нет доступных заявок.", reply_markup=worker_lk_kb)
+            await callback.message.edit_text("Нет взятых заявок.", reply_markup=worker_lk_kb)
             return
         await callback.message.delete()
 
@@ -287,4 +373,7 @@ def register_handlers_worker(dp: Dispatcher):
     dp.register_callback_query_handler(next_order_see, text='next_oder', state=Form.select_order_st)
     dp.register_callback_query_handler(prev_order_see, text='prev_order', state=Form.select_order_st)
     dp.register_callback_query_handler(accept_order, text='accept_order', state=Form.select_order_st)
+    dp.register_callback_query_handler(open_chat_with_cust, text='comm_cust', state=Form.select_order_st)
+    dp.register_message_handler(exit_message_to_cust, text='/выход', state=Form.chat_with_customer)
+    dp.register_message_handler(send_message_to_cust, state=Form.chat_with_customer)
     dp.register_callback_query_handler(see_my_booked_orders, text='worker_orders', state=Form.worker_lk)

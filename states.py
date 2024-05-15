@@ -10,6 +10,10 @@ class Form(StatesGroup):
     settings = State()
     worker_lk = State()
 
+    # чат
+    order_chat = State()
+    chat_with_worker = State()
+
     # Состояния составления задачи
     problem_description = State()
     wait_foto = State()  # Новое состояние для отправления заявки
@@ -35,7 +39,9 @@ class Form(StatesGroup):
     select_order_st = State()
     select_order_st_booked = State()
     select_order_st_client = State()
+    chat_with_customer = State()
 
+    # Состояния сдачи завки
     comment_description = State()
     wait_foto_finish = State()
     order_confirming_finish = State()
