@@ -133,7 +133,7 @@ async def send_order_by_id(order_id):
         media_group = types.MediaGroup()
         if photos:
             for idx, file_id in enumerate(photos):
-                if idx == 0 and order_status == 'available':
+                if idx == 0 and order_status == 'available' or order_status == 'booked':
                     media_group.attach_photo(file_id, caption=f'Специалист: {specialist_name}\nЗадача: {problem}\nВремя размещения: {posted_time}\nВремя на исполнение: {end_time}')
                 elif idx == 0 and order_status == 'completed':
                     worker_name = task[4]
@@ -207,8 +207,8 @@ async def delete_order(callback: types.CallbackQuery, state: FSMContext):
 
 
 async def open_order_chat(callback: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback.id)
     data = await state.get_data()
-
     message_ids = data.get('message_ids', [])
     if message_ids:
         await asyncio.gather(
@@ -240,13 +240,13 @@ async def open_order_chat(callback: types.CallbackQuery, state: FSMContext):
                 chat_kb_lot.add(InlineKeyboardButton(text=button_text, callback_data=f"open_chat:{worker}"))
             await callback.message.answer(text="Выберите чат для просмотра:", reply_markup=chat_kb_lot)
             await Form.order_chat.set()
-            return
     else:
-        await callback.message.edit_text(text='Сообщений нет', reply_markup=select_order_kb)
-        return
+        await callback.message.answer(text='Сообщений нет', reply_markup=select_order_kb)
+        await Form.select_order_st_client.set()
 
 
 async def select_chat(callback: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback.id)
     data = await state.get_data()
     available_ids = data.get('available_ids', [])
     current_index = data.get('current_index', 0)
@@ -258,19 +258,24 @@ async def select_chat(callback: types.CallbackQuery, state: FSMContext):
 
 async def load_chat_messages(callback: types.CallbackQuery, order_id, worker_name):
     await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
+
     query = """
                 SELECT chat.message_content
                 FROM chat
                 WHERE chat.order_id = %s AND chat.worker_name = %s;
             """
     chat_messages = await get_data(query, (order_id, worker_name))
-    loaded_messages = []
+
+    tasks = []
     for message in chat_messages:
         message_text = f"{'Вы' if str(worker_name) != str(callback.from_user.id) else 'Исполнитель'}: {message[0]}"
-        loaded_message = await callback.message.answer(text=message_text)
-        loaded_messages.append(loaded_message.message_id)
+        tasks.append(callback.message.answer(text=message_text))
+
+    responses = await asyncio.gather(*tasks)
+    loaded_messages = [response.message_id for response in responses]
     await Form.chat_with_worker.set()
     return loaded_messages
+
 
 async def send_message_to_worker(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -280,9 +285,7 @@ async def send_message_to_worker(message: types.Message, state: FSMContext):
     order_id = available_ids[current_index]
     worker_name = data.get('worker_name')
     message_ids = data.get('message_ids', [])
-    message_ids.append(message_content.id)
-
-    # Предполагается, что у вас есть определенные sender_id и receiver_id
+    message_ids.append(message.message_id)
 
     client_name = message.from_user.id
     other_user_state = await get_user_state(int(worker_name))

@@ -10,8 +10,6 @@ confirm_kb = InlineKeyboardMarkup(row_wide=2)
 yes_button = InlineKeyboardButton(text='Да', callback_data='yes')
 no_button = InlineKeyboardButton(text='Нет', callback_data='no')
 confirm_kb.add(yes_button, no_button)
-worker_lk_kb.add(w_b1, w_b2)
-worker_lk_kb.add(w_b3)
 worker_lk_kb.add(w_b4)
 
 worker_spec_select_kb = InlineKeyboardMarkup(row_width=2)
@@ -41,6 +39,7 @@ select_order_kb_booked = InlineKeyboardMarkup(row_width=2)
 
 select_order_kb_booked.add(decline_order_b , submit_order_b)
 select_order_kb_booked.add(prev_order_b, next_order_b)
+select_order_kb_booked.add(communicate_customer_b)
 select_order_kb_booked.add(exit_wrk_lk_b)
 
 edit_order_kb_finish = InlineKeyboardMarkup(row_width=1)

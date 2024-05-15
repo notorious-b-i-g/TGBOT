@@ -19,9 +19,15 @@ async def get_user_state(user_id):
 # @dp.callback_query_handler(text='lk_worker', state=Form.main_menu)
 async def see_my_order(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(Form.worker_lk)
+
+    button_to_add_1 = [w_b2] if call.from_user.username in specialists else [w_b1]
+    button_to_add_2 = [w_b3] if call.from_user.username in specialists else None
+
+    if button_to_add_1 not in worker_lk_kb.inline_keyboard:
+        worker_lk_kb.inline_keyboard.insert(0, button_to_add_1)
+    if button_to_add_2 and (button_to_add_2 not in worker_lk_kb.inline_keyboard):
+        worker_lk_kb.inline_keyboard.insert(1, button_to_add_2)
     await call.message.edit_text('Добро пожаловать!', reply_markup=worker_lk_kb)
-    # message_wrk_lk_id = message_wrk_lk.message_id
-    # await state.update_data(message_wrk_lk=message_wrk_lk_id)
 
 
 async def back_2(callback: types.CallbackQuery, state: FSMContext):
@@ -36,7 +42,6 @@ async def registration(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(user_id=callback.from_user.id, username=callback.from_user.username)
     await Form.registration.set()
     await callback.message.edit_text('Укажите вашу специальность', reply_markup=worker_spec_select_kb)
-
 
 
 async def process_registration(callback: types.CallbackQuery, state: FSMContext):
@@ -102,44 +107,39 @@ async def send_order_by_id(order_id):
         return None
 
 
-
 # @callback_query_handler(enter_worker_lk, text='enter', state=Form.worker_lk)
 async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
-    if callback.from_user.username in specialists:
-        data = await state.get_data()
-        # message_wrk_lk_id = data.get('message_wrk_lk')
-        message_ids = data.get('message_ids', [])
-        if message_ids:
-            await asyncio.gather(
-                *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+    data = await state.get_data()
+    # message_wrk_lk_id = data.get('message_wrk_lk')
+    message_ids = data.get('message_ids', [])
+    if message_ids:
+        await asyncio.gather(
+            *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
 
-        available_ids = await get_next_available_index()
-        if not available_ids:
-            await callback.message.edit_text("Нет доступных заявок для авторизации.", reply_markup=worker_lk_kb)
-            return
-        await callback.message.delete()
+    available_ids = await get_next_available_index()
+    if not available_ids:
+        await callback.message.edit_text("Нет доступных заявок.", reply_markup=worker_lk_kb)
+        return
+    await callback.message.delete()
 
-        first_available_id = available_ids[0]  # Берем первый ID из списка доступных
+    first_available_id = available_ids[0]  # Берем первый ID из списка доступных
 
-        # Очищаем предыдущие данные
-        await state.update_data(index=first_available_id, message_ids=message_ids, available_ids=available_ids, current_index=0)
+    # Очищаем предыдущие данные
+    await state.update_data(index=first_available_id, message_ids=message_ids, available_ids=available_ids, current_index=0)
 
-        media_group = await send_order_by_id(first_available_id)
-        # await callback.bot.delete_message(callback.message.chat.id)
-        messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
-        message_ids = [msg.message_id for msg in messages]
-        message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
-                                                    reply_markup=select_order_kb)
-        message_ids.append(message_1.message_id)
+    media_group = await send_order_by_id(first_available_id)
+    # await callback.bot.delete_message(callback.message.chat.id)
+    messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
+    message_ids = [msg.message_id for msg in messages]
+    message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
+                                                reply_markup=select_order_kb)
+    message_ids.append(message_1.message_id)
 
-        # Обновление данных в состоянии
-        await state.update_data(message_ids=message_ids)
-        await Form.select_order_st.set()  # Установка состояния, если это необходимо
-        await state.update_data(come_from="see_my_available")
+    # Обновление данных в состоянии
+    await state.update_data(message_ids=message_ids)
+    await Form.select_order_st.set()  # Установка состояния, если это необходимо
+    await state.update_data(come_from="see_my_available")
 
-    else:
-        await bot.answer_callback_query(callback.id)
-        await callback.message.edit_text('Вы не в списке исполнителей', reply_markup=worker_lk_kb)
 
 async def get_next_available_index():
     query = "SELECT id FROM tasks WHERE order_status = 'available' ORDER BY id"
@@ -224,7 +224,6 @@ async def accept_order(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text("Заявка уже недоступна.", reply_markup=select_order_kb)
 
 
-
 # @callback_query_handler(accept_order, text='comm_cust', state=Form.select_order_st)
 async def open_chat_with_cust(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -233,11 +232,12 @@ async def open_chat_with_cust(callback: types.CallbackQuery, state: FSMContext):
     if message_ids:
         await asyncio.gather(
             *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+
     await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
-    loaded_messages = []
     available_ids = data.get('available_ids', [])
     current_index = data.get('current_index', 0)
     order_id = available_ids[current_index]
+
     query = """
             SELECT chat.message_content, chat.worker_name
             FROM chat
@@ -245,15 +245,17 @@ async def open_chat_with_cust(callback: types.CallbackQuery, state: FSMContext):
             WHERE tasks.id = %s;
         """
     params = (order_id,)
-    chat_massages = await get_data(query, params)
-    for chat_message, worker_name in chat_massages:
-        message_text = f"{'Вы' if str(worker_name) == str(callback.from_user.id) else 'Заказчик'}: {chat_message}"
+    chat_messages = await get_data(query, params)
 
-        loaded_message = await callback.message.answer(text=message_text)
-        loaded_messages.append(loaded_message.message_id)
+    tasks = []
+    for chat_message, worker_name in chat_messages:
+        message_text = f"{'Вы' if str(worker_name) == str(callback.from_user.id) else 'Заказчик'}: {chat_message}"
+        tasks.append(callback.message.answer(text=message_text))
+
+    responses = await asyncio.gather(*tasks)
+    loaded_messages = [response.message_id for response in responses]
     await state.update_data(message_ids=loaded_messages)
     await Form.chat_with_customer.set()
-
 
 async def send_message_to_cust(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -262,7 +264,7 @@ async def send_message_to_cust(message: types.Message, state: FSMContext):
     current_index = data.get('current_index', 0)
     order_id = available_ids[current_index]
     message_ids = data.get('message_ids', [])
-    message_ids.append(message_content.id)
+    message_ids.append(message.message_id)
     query = """
             SELECT chat_id
             FROM tasks
@@ -312,8 +314,8 @@ async def exit_from_orders_show(callback: types.CallbackQuery, state: FSMContext
             *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
     await state.update_data(message_ids=[])
 
-    await callback.message.answer('Добро пожаловать', reply_markup=main_menu_kb)
-    await Form.main_menu.set()
+    await callback.message.answer('Добро пожаловать', reply_markup=worker_lk_kb)
+    await Form.worker_lk.set()
 
 
 async def see_my_booked_orders(callback: types.CallbackQuery, state: FSMContext):
@@ -322,33 +324,30 @@ async def see_my_booked_orders(callback: types.CallbackQuery, state: FSMContext)
     if message_ids:
         await asyncio.gather(*(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
 
-    if callback.from_user.username in specialists:
-        available_ids = await get_next_booked_index(callback.from_user.username)
-        if not available_ids:
-            await callback.message.edit_text("Нет взятых заявок.", reply_markup=worker_lk_kb)
-            return
-        await callback.message.delete()
+    available_ids = await get_next_booked_index(callback.from_user.username)
+    if not available_ids:
+        await callback.message.edit_text("Нет взятых заявок.", reply_markup=worker_lk_kb)
+        return
+    await callback.message.delete()
 
-        first_available_id = available_ids[0]  # Берем первый ID из списка доступных
+    first_available_id = available_ids[0]  # Берем первый ID из списка доступных
 
-        # Очищаем предыдущие данные
-        await state.update_data(message_ids=message_ids, index=first_available_id, available_ids=available_ids, current_index=0)
+    # Очищаем предыдущие данные
+    await state.update_data(message_ids=message_ids, index=first_available_id, available_ids=available_ids, current_index=0)
 
-        media_group = await send_order_by_id(first_available_id)
-        messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
-        message_ids = [msg.message_id for msg in messages]
-        message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
-                                                    reply_markup=select_order_kb_booked)
-        message_ids.append(message_1.message_id)
+    media_group = await send_order_by_id(first_available_id)
+    messages = await callback.bot.send_media_group(callback.message.chat.id, media_group)
+    message_ids = [msg.message_id for msg in messages]
+    message_1 = await callback.bot.send_message(callback.message.chat.id, "Выберите действие:",
+                                                reply_markup=select_order_kb_booked)
+    message_ids.append(message_1.message_id)
 
-        # Обновление данных в состоянии
-        await bot.answer_callback_query(callback.id)
-        await state.update_data(message_ids=message_ids)
-        await Form.select_order_st.set()  # Установка состояния, если это необходимо
-        await state.update_data(come_from="see_my_booked")
-    else:
-        await bot.answer_callback_query(callback.id)
-        await callback.message.edit_text('Вы не в списке исполнителей', reply_markup=worker_lk_kb)
+    # Обновление данных в состоянии
+    await bot.answer_callback_query(callback.id)
+    await state.update_data(message_ids=message_ids)
+    await Form.select_order_st.set()  # Установка состояния, если это необходимо
+    await state.update_data(come_from="see_my_booked")
+
 
 
 # @callback_query_handler(next_order_see, text='next_oder', state=Form.select_order_st)
