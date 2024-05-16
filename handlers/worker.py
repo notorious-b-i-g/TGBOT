@@ -208,6 +208,7 @@ async def prev_order_see(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(available_ids=available_ids)
     await change_order_see(callback, state, -1)
 
+
 # @callback_query_handler(accept_order, text='accept_order', state=Form.select_order_st)
 async def accept_order(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -232,8 +233,10 @@ async def open_chat_with_cust(callback: types.CallbackQuery, state: FSMContext):
     if message_ids:
         await asyncio.gather(
             *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
-
-    await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
+    message_ids = []
+    data['message_ids'] = message_ids
+    message_chat_open = await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
+    message_ids.append(message_chat_open.message_id)
     available_ids = data.get('available_ids', [])
     current_index = data.get('current_index', 0)
     order_id = available_ids[current_index]
@@ -254,8 +257,10 @@ async def open_chat_with_cust(callback: types.CallbackQuery, state: FSMContext):
 
     responses = await asyncio.gather(*tasks)
     loaded_messages = [response.message_id for response in responses]
-    await state.update_data(message_ids=loaded_messages)
+    message_ids.extend(loaded_messages)
+    await state.update_data(message_ids=message_ids)
     await Form.chat_with_customer.set()
+
 
 async def send_message_to_cust(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -293,12 +298,17 @@ async def send_message_to_cust(message: types.Message, state: FSMContext):
 
 async def exit_message_to_cust(message: types.Message, state: FSMContext):
     data = await state.get_data()
-
     message_ids = data.get('message_ids', [])
+    message_chat_exit = message.message_id
+    message_chat_close = await message.answer("Чат закрыт", reply_markup=types.ReplyKeyboardRemove())
+
+    message_ids.append(message_chat_close.message_id)
+    message_ids.append(message_chat_exit)
+
     if message_ids:
         await asyncio.gather(
             *(bot.delete_message(message.chat.id, msg_id) for msg_id in message_ids))
-    await message.answer("Чат закрыт", reply_markup=types.ReplyKeyboardRemove())
+
     await message.answer('Добро пожаловать!', reply_markup=worker_lk_kb)
     await state.update_data(message_ids=[])
     await Form.worker_lk.set()

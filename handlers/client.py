@@ -92,7 +92,7 @@ async def change_order_see(callback: types.CallbackQuery, state: FSMContext, ste
         current_index -= 1
     elif current_index == 0 and step == -1:
         current_index = max_index
-
+    print(available_ids, current_index)
     order_id = available_ids[current_index]
 
     # Удаление старых сообщений
@@ -164,7 +164,8 @@ async def prev_order_see(callback: types.CallbackQuery, state: FSMContext):
     if not (data := await state.get_data()).get('available_ids'):
         available_ids = await get_next_available_index(callback.from_user.username)
         await state.update_data(available_ids=available_ids)
-    await change_order_see(callback, state, -1 )
+    await change_order_see(callback, state, -1)
+
 
 async def exit_from_orders_show(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -195,7 +196,7 @@ async def delete_order(callback: types.CallbackQuery, state: FSMContext):
         print(f"Заказ {order_id} удален.")
         # Обновляем список доступных заявок
         available_ids = await get_next_available_index(callback.from_user.username)
-        await state.update_data(available_ids=available_ids)
+        await state.update_data(available_ids=available_ids, current_index=0)
 
         if available_ids:
             await change_order_see(callback, state, 1)
@@ -209,10 +210,7 @@ async def delete_order(callback: types.CallbackQuery, state: FSMContext):
 async def open_order_chat(callback: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback.id)
     data = await state.get_data()
-    message_ids = data.get('message_ids', [])
-    if message_ids:
-        await asyncio.gather(
-            *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+
 
     available_ids = data.get('available_ids', [])
     current_index = data.get('current_index', 0)
@@ -224,6 +222,12 @@ async def open_order_chat(callback: types.CallbackQuery, state: FSMContext):
         WHERE tasks.id = %s;
     """, (order_id,))
     if chat_data:
+        message_ids = data.get('message_ids', [])
+        if message_ids:
+            await asyncio.gather(
+                *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
+        message_ids = []
+        await state.update_data(message_ids=message_ids)
         workers = set()
         for names in chat_data:
             workers.add(names[0])
@@ -238,10 +242,16 @@ async def open_order_chat(callback: types.CallbackQuery, state: FSMContext):
             for worker in workers:
                 button_text = f"Chat between {worker}"
                 chat_kb_lot.add(InlineKeyboardButton(text=button_text, callback_data=f"open_chat:{worker}"))
-            await callback.message.answer(text="Выберите чат для просмотра:", reply_markup=chat_kb_lot)
+            print(message_ids, 'open_chat')
+
+            message_chat_select = await callback.message.answer(text="Выберите чат для просмотра:", reply_markup=chat_kb_lot)
+            message_ids.append(message_chat_select.message_id)
+
+            await state.update_data(message_ids=message_ids)
+
             await Form.order_chat.set()
     else:
-        await callback.message.answer(text='Сообщений нет', reply_markup=select_order_kb)
+        await callback.message.edit_text(text='Сообщений нет', reply_markup=select_order_kb)
         await Form.select_order_st_client.set()
 
 
@@ -250,29 +260,33 @@ async def select_chat(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     available_ids = data.get('available_ids', [])
     current_index = data.get('current_index', 0)
+    message_ids = data.get('message_ids', [])
     order_id = available_ids[current_index]
     worker_name = callback.data[10:]
     loaded_messages = await load_chat_messages(callback, order_id, worker_name)
-    await state.update_data(message_ids=loaded_messages, worker_name=worker_name)
+    message_ids.extend(loaded_messages)
+    print(message_ids, 'load')
+    await state.update_data(message_ids=message_ids, worker_name=worker_name)
 
 
 async def load_chat_messages(callback: types.CallbackQuery, order_id, worker_name):
-    await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
-
+    message_chat_open = await callback.message.answer(text='Чат открыт', reply_markup=chat_kb)
     query = """
-                SELECT chat.message_content
+                SELECT chat.sender_id, chat.message_content
                 FROM chat
                 WHERE chat.order_id = %s AND chat.worker_name = %s;
             """
     chat_messages = await get_data(query, (order_id, worker_name))
 
     tasks = []
-    for message in chat_messages:
-        message_text = f"{'Вы' if str(worker_name) != str(callback.from_user.id) else 'Исполнитель'}: {message[0]}"
+    for sender_id, message in chat_messages:
+        print(worker_name, callback.from_user.id)
+        message_text = f"{'Вы' if str(sender_id) == str(callback.from_user.id) else 'Исполнитель'}: {message}"
         tasks.append(callback.message.answer(text=message_text))
 
     responses = await asyncio.gather(*tasks)
     loaded_messages = [response.message_id for response in responses]
+    loaded_messages.append(message_chat_open.message_id)
     await Form.chat_with_worker.set()
     return loaded_messages
 
@@ -304,12 +318,16 @@ async def send_message_to_worker(message: types.Message, state: FSMContext):
 
 async def exit_message_to_worker(message: types.Message, state: FSMContext):
     data = await state.get_data()
-
+    message_chat_exit = message.message_id
     message_ids = data.get('message_ids', [])
+    message_chat_close = await message.answer("Чат закрыт", reply_markup=types.ReplyKeyboardRemove())
+    message_ids.append(message_chat_close.message_id)
+    message_ids.append(message_chat_exit)
+    print(message_ids, 'exit')
     if message_ids:
         await asyncio.gather(
             *(bot.delete_message(message.chat.id, msg_id) for msg_id in message_ids))
-    await message.answer("Чат закрыт", reply_markup=types.ReplyKeyboardRemove())
+
     await message.answer('Добро пожаловать!', reply_markup=main_menu_kb)
     await state.update_data(message_ids=[])
     await Form.main_menu.set()

@@ -4,13 +4,13 @@ b1 = KeyboardButton('/start')
 
 
 main_menu_kb = InlineKeyboardMarkup(row_width=2)
-mmb1 = InlineKeyboardButton(text="Составить заявку", callback_data='make_order')
-mmb2 = InlineKeyboardButton(text='Мои заявки', callback_data='my_orders')
-mmb3 = InlineKeyboardButton(text='Информация', callback_data='info')
-mmb4 = InlineKeyboardButton(text='Настройки', callback_data='settings')
-mmb5 = InlineKeyboardButton(text='Для работников', callback_data='lk_worker')
+mmb1 = InlineKeyboardButton(text="Составить заявку 📝", callback_data='make_order')
+mmb2 = InlineKeyboardButton(text='Мои заявки 📗', callback_data='my_orders')
+mmb3 = InlineKeyboardButton(text='Информация ℹ️', callback_data='info')
+mmb4 = InlineKeyboardButton(text='Настройки 🛠', callback_data='settings')
+mmb5 = InlineKeyboardButton(text='Для работников 👷‍♂️', callback_data='lk_worker')
 
-main_menu_kb.row(mmb1, mmb2)
+main_menu_kb.row(mmb2, mmb1)
 main_menu_kb.row(mmb3, mmb4)
 main_menu_kb.row(mmb5)
 
@@ -29,17 +29,12 @@ spec_keyboard.add(spec_back)
 # prob_keyboard = InlineKeyboardButton(row_width=3)
 # prob_ = InlineKeyboardButton(text=)
 
-# Добавление фото
-photo_kb = InlineKeyboardMarkup(row_width=1)
-add_photo = InlineKeyboardButton(text='Добавить фото', callback_data='add_photo')
-cont_order = InlineKeyboardButton(text='Закончить добавление', callback_data='end_add')
-photo_kb.add(add_photo)
-photo_kb.add(cont_order)
+
 
 # Подтвержение заявки
 confirm_order = InlineKeyboardMarkup(row_width=1)
-confirm_all = InlineKeyboardButton(text='Да, верно', callback_data='all_right')
-edit_someth = InlineKeyboardButton(text='Нет, редактировать', callback_data='edit_order')
+confirm_all = InlineKeyboardButton(text='Да, верно ✅', callback_data='all_right')
+edit_someth = InlineKeyboardButton(text='Нет, редактировать ✏️', callback_data='edit_order')
 confirm_order.add(confirm_all).add(edit_someth)
 
 # Что редактировать
@@ -52,16 +47,16 @@ edit_order_kb.add(b_edit_photo)
 
 # Для ректирование фото
 edit_photo_kb = InlineKeyboardMarkup(row_width=1)
-b_add_photo = InlineKeyboardButton(text='Добавить ещё', callback_data='add_more_photo')
-b_reset_photo = InlineKeyboardButton(text='Доабавить заново', callback_data='reset_photo')
+b_add_photo = InlineKeyboardButton(text='Добавить ещё📎', callback_data='add_more_photo')
+b_reset_photo = InlineKeyboardButton(text='Доабавить заново🖇', callback_data='reset_photo')
 edit_photo_kb.add(b_add_photo)
 edit_photo_kb.add(b_reset_photo)
 
 select_order_kb = InlineKeyboardMarkup(row_width=2)
-decline_order_b = InlineKeyboardButton(text='Удалить заявку', callback_data='delete_order')
-next_order_b = InlineKeyboardButton(text='Следующая заявка', callback_data='next_oder')
-prev_order_b = InlineKeyboardButton(text='Предыдущая заявка', callback_data='prev_order')
-chat_order_b = InlineKeyboardButton(text='Чат по заявке', callback_data='chat_order')
+decline_order_b = InlineKeyboardButton(text='❌ Удалить заявку', callback_data='delete_order')
+next_order_b = InlineKeyboardButton(text='Следующая заявка ➡️', callback_data='next_oder')
+prev_order_b = InlineKeyboardButton(text='⬅️ Предыдущая заявка', callback_data='prev_order')
+chat_order_b = InlineKeyboardButton(text='Чат по заявке📱', callback_data='chat_order')
 exit_wrk_lk_b = InlineKeyboardButton(text='Выход', callback_data='exit_wrk_lk')
 
 select_order_kb.add(decline_order_b, chat_order_b)
