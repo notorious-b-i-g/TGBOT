@@ -5,10 +5,12 @@ from keyboard.clientKB import main_menu_kb
 from states import Form
 from create_bot import dp, bot, FSMContext, storage
 from db import insert_data, get_data, insert_task_with_photos
-from config import specialists
 import asyncio
 from datetime import datetime, timedelta
-
+async def get_usernames():
+    query = "SELECT username FROM registered_users"
+    result = await get_data(query, ())
+    return [row[0] for row in result]
 async def get_user_state(user_id):
     # Получаем объект состояния для пользователя с использованием FSMContext
     state = FSMContext(storage, chat=user_id, user=user_id)
@@ -19,7 +21,7 @@ async def get_user_state(user_id):
 # @dp.callback_query_handler(text='lk_worker', state=Form.main_menu)
 async def see_my_order(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(Form.worker_lk)
-
+    specialists = await get_usernames()
     button_to_add_1 = [w_b2] if call.from_user.username in specialists else [w_b1]
     button_to_add_2 = [w_b3] if call.from_user.username in specialists else None
 
@@ -106,6 +108,10 @@ async def send_order_by_id(order_id):
         print("Задача с ID {} не найдена.".format(order_id))
         return None
 
+async def get_specialist_name(username):
+    query = "SELECT specialist_name FROM registered_users WHERE username = %s"
+    result = await get_data(query, (username,))
+    return result[0][0] if result else None
 
 # @callback_query_handler(enter_worker_lk, text='enter', state=Form.worker_lk)
 async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
@@ -115,8 +121,9 @@ async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
     if message_ids:
         await asyncio.gather(
             *(callback.bot.delete_message(callback.message.chat.id, msg_id) for msg_id in message_ids))
-
-    available_ids = await get_next_available_index()
+    spec = await get_specialist_name(callback.from_user.username)
+    print(spec , "fffdsafdfefeafs")
+    available_ids = await get_next_available_index(spec)
     if not available_ids:
         await callback.message.edit_text("Нет доступных заявок.", reply_markup=worker_lk_kb)
         return
@@ -141,10 +148,9 @@ async def enter_worker_lk(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(come_from="see_my_available")
 
 
-async def get_next_available_index():
-    query = "SELECT id FROM tasks WHERE order_status = 'available' ORDER BY id"
-    tasks = await get_data(query, ())
-    # Assuming tasks is a list of tuples, where each tuple contains one element (id)
+async def get_next_available_index(specialist_name):
+    query = f"SELECT id FROM tasks WHERE order_status = 'available' AND specialist_name = %s ORDER BY id"
+    tasks = await get_data(query, (specialist_name,))    # Assuming tasks is a list of tuples, where each tuple contains one element (id)
     return [task[0] for task in tasks]  # Extracting the first element of each tuple directly
 
 
@@ -196,7 +202,8 @@ async def change_order_see(callback: types.CallbackQuery, state: FSMContext, ste
 async def next_order_see(callback: types.CallbackQuery, state: FSMContext):
 
     if not (data := await state.get_data()).get('available_ids'):
-        available_ids = await get_next_available_index()
+        spec = await get_specialist_name(callback.from_user.username)
+        available_ids = await get_next_available_index(spec)
         await state.update_data(available_ids=available_ids)
     await change_order_see(callback, state, 1)
 
@@ -204,7 +211,8 @@ async def next_order_see(callback: types.CallbackQuery, state: FSMContext):
 # @callback_query_handler(next_order_see, text='prev_oder', state=Form.select_order_st)
 async def prev_order_see(callback: types.CallbackQuery, state: FSMContext):
     if not (data := await state.get_data()).get('available_ids'):
-        available_ids = await get_next_available_index()
+        spec = await get_specialist_name(callback.from_user.username)
+        available_ids = await get_next_available_index(spec)
         await state.update_data(available_ids=available_ids)
     await change_order_see(callback, state, -1)
 

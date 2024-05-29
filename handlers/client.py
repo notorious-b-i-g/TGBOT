@@ -1,5 +1,4 @@
 import asyncio
-from config import specialists
 from aiogram import types, Dispatcher
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from keyboard.clientKB import *

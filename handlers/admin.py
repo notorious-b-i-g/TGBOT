@@ -2,18 +2,23 @@ from aiogram import types, Dispatcher
 from create_bot import bot, FSMContext
 from states import Form
 import json
-
+from config import admins
 from keyboard.adminKB import *
-from config import specialists , API_TOKEN
+from config import API_TOKEN
 from db import insert_data, get_data, insert_task_with_photos
 from utils.google_sheets import *
 
+async def get_usernames():
+    query = "SELECT username FROM registered_users"
+    result = await get_data(query, ())
+    return [row[0] for row in result]
 
 # @message_handler(admin_lk_show, commands=['admin'])
 async def admin_lk_show(message: types.Message):
     user_id = message.from_user.username
+    specialists = await get_usernames()
     print(user_id)
-    if user_id in specialists:
+    if user_id in admins:
         await bot.send_message(message.chat.id, 'Какой важный', reply_markup=admin_lk_kb)
         await Form.admin_lk_st.set()
     else:
