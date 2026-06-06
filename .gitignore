@@ -1,0 +1,27 @@
+# Секреты и окружение
+.env
+*.json.key
+*service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.Python
+build/
+dist/
+
+# Виртуальные окружения
+venv/
+.venv/
+env/
+
+# Логи и БД
+*.log
+*.sqlite3
+*.db
+
+# IDE
+.idea/
+.vscode/
